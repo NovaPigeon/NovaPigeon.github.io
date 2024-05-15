@@ -1,0 +1,786 @@
+<?xml version="1.0" encoding="utf-8"?>
+<search>
+  <entry>
+    <title>CrystalNet</title>
+    <url>/2024/05/15/CrystalNet/</url>
+    <content><![CDATA[<h1 id="faithfully-emulating-large-production-networks">Faithfully
+Emulating Large Production Networks</h1>
+<p>Please read the
+https://www.microsoft.com/en-us/research/wp-content/uploads/2017/10/p599-liu.pdf
+(you can focus on S1-S5), and try your best to finish the following
+three tasks:</p>
+<h2 id="task-1-reading-writing">Task #1: Reading &amp; Writing: </h2>
+<h3 id="what-problem-is-this-paper-solving">1. What problem is this
+paper solving?</h3>
+<p>对于云服务和 online service
+的大型网络而言，可靠地运行是一项挑战。这些网络往往包含数以万计的异构的设备，且一直在动态变化中。这使得哪怕是一些小问题，诸如硬件故障，软件bug，配置错误和人为的小错误（如输错命令），也会导致严重的后果，譬如网络中断。SLA
+的不可靠继而导致用户的流失，这对服务提供商来说是灾难性的。</p>
+<p>一个可行的思路是，在高保真的网络仿真器中验证所有网络操作，然后再在生产网络中执行。以往的技术并没有办法实现这种思路。</p>
+<ol type="1">
+<li>Small hardware testbeds，如 Cloudlab/
+Emulab，只能对新设备进行单元/压力测试，但无法模拟复杂网络拓扑结构中的相互关系。</li>
+<li>Network verification tools，例如
+batfish，是根据设备配置和拓扑，来模拟理想状态下的路由的。但它无法揭示设备固件
+bug
+和诸如不同供应商对同一路由协议的实现差异带来的问题，且无法防止人为错误（因为其工作流程与生产网络截然不同，无法方便地起到预演的作用）。</li>
+<li>Small-scale network emulator，如
+MiniNet/GNS，拥有许多缺陷（如不支持异构的设备固件，不识别安全的仿真边界），且无法扩展到如大型云网络的规模。</li>
+</ol>
+<p>因此，本文提出了 highly-scalable/high-fidelity network emulator:
+CrystalNet.</p>
+<h3 id="what-is-the-key-idea">2. What is the key idea?</h3>
+<p>CrystalNet 首先需要建立物理网络的模拟。</p>
+<p>对于异构的网络设备，CrystalNet 将设备运行在 Docker
+容器中，部署在云上的 VM 里。另外，实现一个 PhyNet 容器层，包含 virtual
+interface，设备容器与 PhyNet 连接，而网络拓扑通过 PhyNet
+之间的互相连接实现。因此不用针对每个设备软件 image 的黑箱一一实现
+API，而只要实现统一的 API；设备软件像与物理 interface 交互一样与 PhyNet
+中的 virtual interface 交互。</p>
+<p>对于只提供 VM image 而不提供容器 image 的设备，CrystalNet 将 VM image
+等打包到一个新的容器 image 中，再在云 VM 中运行该
+image（云需要支持嵌套虚拟机）</p>
+<p>CrystalNet 也支持真实硬件的耦合，硬件交换机与 PhyNet 相连（经过
+fanout 交换机），就可以与其他仿真设备交互。</p>
+<p>对于 CrystalNet
+的数据平面虚拟链路，仿真设备将其视为以太网链路。且使用 VXLAN
+协议，模拟以太网链路(L2-L3，添加 UDP 报头，可连接 IP
+网络)，使数据在真实网络中传播，而这对仿真设备透明。</p>
+<p>对于 CrystalNet 的控制平面虚拟链路，CrystalNet 部署了一个 Linux
+Jumpbox，与所有仿真设备相连。通过
+Jumpbox，操作者可以像在生产环境中一样操作所有仿真设备。</p>
+<p>任何仿真网络都需要有边界，一则没有那么多的资源，二则无法获知控制范围之外的网络设备的信息。CrystalNet
+定义了安全静态边界的概念(safe static
+boundaries)，指当内部的仿真设备发生各种变动时，外部网络可以视作始终保持静态。模拟外部网络时，CrystalNet只模拟与内部设备直接相连的设备，称为
+speaker device，这些设备是静态的，只通过基本的活动（如
+ARP）与边界设备保持连接，且可以发送任何路由信息。CrystalNet 针对
+BGP/OSFP/SDN，提出了安全静态边界成立的一些充分条件。并对于 Clos-like
+&amp; BGP 的数据中心网络(其拓扑可以视作 multi-root
+tree)提出了一种搜索安全静态边界的算法。经过实验，计算安全静态边界降低了
+90% 以上的成本。</p>
+<p>通过以上设计，CrystalNet 实现了以下目标： 1. 可以运行在公有云上，易于
+scale out（container） 2. 可以透明地模拟物理网络（PhyNet, VXLAN） 3.
+可以透明地模拟外部网络（安全静态边界，speaker device）</p>
+<h3 id="any-idea-to-improve-the-proposed-solution">3. Any idea to
+improve the proposed solution?</h3>
+<ol type="1">
+<li>当前 CrystalNet 的用法还是一种网络的验证工具，那是否有可能将
+CrystalNet 作为生产环境与实际操作之间的缓冲层？CrystalNet
+与生产网络同构，每当执行一个操作，首先自动化地在 CrystalNet
+上执行，然后经过一段时间的验证后，再从 CrystalNet 导向实际生产网络。另外
+CrystalNet
+应当对操作者透明，除了报错时，操作者应当意识不到他们操作的究竟是
+CrystalNet 还是真实网络。</li>
+<li>模拟数据平面的内容，诸如丢包率，延迟，带宽。</li>
+<li>支持除 Ethernet
+网卡外的其他设备和除以太网之外的其他链路层协议。</li>
+<li>改进仿真设备在云上的部署算法，考虑延迟等度量的同构性。 (2-4
+详见问4中所述)</li>
+</ol>
+<h3 id="ask-three-questions-you-dont-understand-about-the-paper.">4. Ask
+three questions you don’t understand about the paper.</h3>
+<ol type="1">
+<li>此处说到的可以扩展到其他设备，包括其他类型的硬件接口吗？譬如
+InfiniBand 版的 RDMA 实现就重构了链路层，但前文中提到 CrystalNet 只支持
+Ethernet 网卡。其他的譬如各式 SmartNIC，DPU
+之类的可以与之兼容吗？（这似乎不只是软件层面的问题，还有硬件的异构）CrystalNet
+可以支持不同的链路层协议吗？</li>
+<li>数据平面的丢包率，延迟，带宽等为什么难以模拟呢？如 Linux 提供的
+tc-netem，就可以模拟丢包率，延迟，带宽等等。</li>
+<li>在公有云上部署 VMs，这些 VMs
+的实际物理位置是不可知的（甚至会跨越多个公有云），这会导致实际上被部署在一起、相互之间延迟极低的设备，在云上可能相距极远、延迟极高。（云上容器的实际拓扑与生产环境中设备的拓扑不相符）进一步导致诸如
+OSPF 等对 time cost
+敏感的路由协议在更新路由表、计算路由路径时与实际可能发生的情况不相符。如何处理这种情况，直接写死路由吗？或许可以有部署算法的改进可能？</li>
+</ol>
+<h2 id="task-2-math-formulation">Task #2: Math formulation: </h2>
+<h3
+id="could-you-mathematically-formulate-the-problem-discussed-in-sec-5">1.
+Could you mathematically formulate the problem discussed in Sec 5?</h3>
+<p>Define the global network topology as an undirected graph <span
+class="math inline">\(G=(V,L)\)</span>, where <span
+class="math inline">\(V\)</span> is the set of device nodes, and <span
+class="math inline">\(L\)</span> represents the links between devices
+(also the undirected edges in the graph).</p>
+<p>Define emulated devices <span class="math inline">\(D\)</span>,
+external devices <span class="math inline">\(E\)</span>, where <span
+class="math inline">\(G=D \cup E \wedge D\cap E=\emptyset\)</span>.</p>
+<p>Define boundary devices <span class="math inline">\(B :=\{u|(u\in D)
+\wedge (\exists v\in E,s.t. \space (u,v)\in L)\}\)</span>, which are
+emulated devices directly connected to external devices.</p>
+<p>Define internal devices <span class="math inline">\(I:=\{u|(u\in
+D)\wedge(\forall v\in E, (u,v)\notin L)\}\)</span>, which are emulated
+devices whose neighbors are all emulated devices. Thus, <span
+class="math inline">\(B\cup I=D \wedge B\cap I=\emptyset\)</span>.</p>
+<p>Define speaker devices (speaker device) <span
+class="math inline">\(S:=\{u|(u\in E)\wedge(\exists v\in D,s.t. (u,v)\in
+L)\}\)</span>, which are external devices directly connected to emulated
+devices.</p>
+<p>Define the boundary <span class="math inline">\(B\)</span> as a safe
+static boundary: all behaviors of emulated devices are consistent with
+the real network. Since CrystalNet implements speaker devices as static,
+this statement is equivalent to the fact that the behavior of speaker
+devices in the real network cannot affect devices inside the boundary
+(including boundary devices).</p>
+<p>Define an impact function <span class="math inline">\(f: V\times
+P(V\times V) \to P(V)\)</span>, where <span
+class="math inline">\(P(V)\)</span> is the power set of <span
+class="math inline">\(V\)</span>. <span class="math inline">\(\forall
+u\in V\)</span>, <span class="math inline">\(f(u, R)=Next_{u,R}\subseteq
+V\)</span>, and for all <span class="math inline">\(v\in
+Next_{u,R}\)</span>, <span class="math inline">\((u,v)\in L\)</span>.
+This means that if <span class="math inline">\(u\)</span> wants to send
+information, this information can propagate to devices in <span
+class="math inline">\(Next_{u,R}\)</span>, and these devices will
+continue to apply the function <span class="math inline">\(f(v,R\cup \{
+&lt;u,v&gt;\})\)</span> to send information. Here, <span
+class="math inline">\(R\)</span> records the path that the information
+propagation has traversed.</p>
+<p>We apply the following algorithm to determine whether <span
+class="math inline">\(B\)</span> is a safe boundary.</p>
+<figure class="highlight py"><table><tr><td class="code"><pre><span class="line"><span class="keyword">global</span> V,L,D,E,f <span class="comment"># given</span></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">transmitt</span>(<span class="params">u,R</span>)-&gt;<span class="built_in">bool</span>:</span><br><span class="line">    Next_u_R=f(u,R)</span><br><span class="line">    <span class="keyword">for</span> v <span class="keyword">in</span> Next_u_R:</span><br><span class="line">        <span class="keyword">if</span> u <span class="keyword">in</span> E <span class="keyword">and</span> v <span class="keyword">in</span> D:</span><br><span class="line">            <span class="keyword">return</span> <span class="literal">False</span></span><br><span class="line">    <span class="keyword">if</span> transmitt(f,v,R.append(&lt;u,v&gt;))==<span class="literal">False</span>:</span><br><span class="line">            <span class="keyword">return</span> <span class="literal">False</span></span><br><span class="line">    <span class="keyword">return</span> <span class="literal">True</span></span><br><span class="line">    </span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">isSafeStaticBoundary</span>()-&gt;<span class="built_in">bool</span>:</span><br><span class="line">    <span class="keyword">for</span> begin <span class="keyword">in</span> D:</span><br><span class="line">        <span class="keyword">if</span> transmitt(begin,[])==<span class="literal">False</span>:</span><br><span class="line">            <span class="keyword">return</span> <span class="literal">False</span></span><br><span class="line">    <span class="keyword">return</span> <span class="literal">True</span></span><br></pre></td></tr></table></figure>
+<p>This problem may not be Turing-decidable because it may produce
+loops, and <span class="math inline">\(f\)</span> is a function that may
+behave differently based on past path information, making it impossible
+to determine when duplicates will occur. Therefore, the algorithm may
+not stop. Of course, if a deterministic <span
+class="math inline">\(f\)</span> is provided, the result can be
+determined through constraints.</p>
+<h3
+id="given-your-problem-formulation-and-notations-could-you-formally-express-the-lemma-and-propositions-in-sec-5">2.
+Given your problem formulation and notations, could you formally express
+the Lemma and Propositions in Sec 5?</h3>
+<h4 id="bgp">BGP</h4>
+<p>For networks using BGP protocol, we need to add AS information. Let
+<span class="math inline">\(ASes:= \{AS_{n_i}\}\)</span>, <span
+class="math inline">\(ASN=\{n_i\}\)</span>, where <span
+class="math inline">\(\cup_{i}AS_{n_i}=V\)</span>, and <span
+class="math inline">\(\cap_{i}AS_{n_i}=\emptyset\)</span>.</p>
+<p>We can simplify <span class="math inline">\(R\)</span> as an ordered
+set of nodes in the path.</p>
+<p>Define <span class="math display">\[inSameAS: V\times V\rightarrow
+\{true,false\}\]</span></p>
+<p><span class="math display">\[inSameAS(u,v)= \exists i,s.t.\space u\in
+AS_{n_i} \wedge v\in AS_{n_i}\]</span></p>
+<p>The propagation function is given by: <span
+class="math display">\[f(u,R)=Next_{u,R}=\{v|((u,v)\in L)\wedge
+(\nexists w \in R,s.t. \space inSameAS(w,v))\wedge
+(!inSameAS(u,v))\}\]</span></p>
+<p>Subsequently, <span class="math display">\[\forall v \in Next_{u,R}
+\text{, call } {f(v,R\cup \{ u\})}\]</span></p>
+<p><span class="math inline">\(RV\)</span> records the paths that appear
+in the propagation.</p>
+<p>The problem then transforms into the following algorithm:</p>
+<figure class="highlight py"><table><tr><td class="code"><pre><span class="line"><span class="keyword">global</span> V,L,D,E,ASes <span class="comment"># given</span></span><br><span class="line"></span><br><span class="line">RV=[] <span class="comment"># route vectors</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">transmitt</span>(<span class="params">u,R</span>)-&gt;<span class="built_in">bool</span>:</span><br><span class="line">    Next_u_R=[]</span><br><span class="line">    RV.append(R.append(u))</span><br><span class="line">    <span class="keyword">for</span> v <span class="keyword">in</span> Neighbor(u):</span><br><span class="line">        flag=<span class="literal">False</span></span><br><span class="line">        <span class="keyword">if</span> inSameAS(u,v):</span><br><span class="line">            flag=true</span><br><span class="line">    <span class="keyword">for</span> w <span class="keyword">in</span> R:</span><br><span class="line">        <span class="keyword">if</span> inSameAS(v,w):</span><br><span class="line">            flag=<span class="literal">True</span></span><br><span class="line">            <span class="keyword">break</span></span><br><span class="line">        <span class="keyword">if</span> flag==<span class="literal">True</span></span><br><span class="line">            <span class="keyword">continue</span></span><br><span class="line">        <span class="keyword">if</span> u <span class="keyword">in</span> E <span class="keyword">and</span> v <span class="keyword">in</span> D:</span><br><span class="line">            <span class="keyword">return</span> <span class="literal">False</span></span><br><span class="line">        Next_u_R.append(v)</span><br><span class="line">    <span class="keyword">for</span> v <span class="keyword">in</span> Next_u_R:</span><br><span class="line">        <span class="keyword">if</span> transmitt(v,R.append(u))==<span class="literal">False</span>:</span><br><span class="line">            <span class="keyword">return</span> <span class="literal">False</span></span><br><span class="line">    <span class="keyword">return</span> <span class="literal">True</span></span><br><span class="line"></span><br><span class="line">    </span><br><span class="line"></span><br><span class="line"> <span class="keyword">def</span> <span class="title function_">isSafeStaticBoundary</span>()-&gt;<span class="built_in">bool</span>:</span><br><span class="line">    <span class="keyword">for</span> begin <span class="keyword">in</span> D:</span><br><span class="line">        <span class="keyword">if</span> transmitt(begin,[],V,L,D,E)==<span class="literal">False</span>:</span><br><span class="line">            <span class="keyword">return</span> <span class="literal">False</span></span><br><span class="line">    <span class="keyword">return</span> <span class="literal">True</span></span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<p><span class="math inline">\(\text{Lemma 5.1: A boundary is safe if
+and only if }\forall R \in RV, \nexists i\text{, s.t.}R[i] \in E \wedge
+R[i+1] \in D.\)</span></p>
+<p><span class="math inline">\(\text{Proposition 5.2: If }\exists
+i,\text{ s.t. }B \subseteq AS_{n_i} \wedge (\nexists u,v \in S , u\not
+={v}\text{, s.t. }inSameAS(u,v))\text{, the boundary is
+safe.}\)</span></p>
+<p><span class="math inline">\(\text{Proposition 5.3: If }\forall R \in
+RV, \nexists i&lt;j&lt;k\text{, s.t. }(R[i] \text{ and } R[k] \in B)
+\wedge (R[j] \in E)\text{ the boundary is safe.}\)</span></p>
+<h4 id="ospf">OSPF</h4>
+<p>Let <span class="math inline">\(S,B,L,D,E\)</span> all be time
+series.</p>
+<p>Let <span class="math inline">\(Links(S_{t_i},B_{t_i}):=\{(u,v)|(u,v)
+\in L_{t_i} \wedge u \in S_{t_i} \wedge v \in B_{t_i}\}\)</span></p>
+<p><span class="math inline">\(\text{Proposition 5.4: If }\forall i,
+Links(S_{t_i},B_{t_i})=Links(S_{t_0},B_{t_0}) \text{ and }DR,BDR \in
+D\text{, the boundary of the OSPF network is safe.}\)</span></p>
+<h2
+id="task-3-programming-could-you-implement-and-test-algorithm-1-with-a-sample-network">Task
+#3: Programming: Could you implement and test Algorithm 1 with a sample
+network?</h2>
+<p>Please refer to the file algorithm.ipynb. The search algorithm is
+implemented based on a multi-root tree.</p>
+<h3 id="generate-multi-root-tree">Generate multi-root tree</h3>
+<p>将 Clos-like 的数据中心网络拓扑结构看作 multi-root tree，随机生成 DAG
+G。</p>
+<figure class="highlight py"><table><tr><td class="code"><pre><span class="line"><span class="keyword">import</span> matplotlib.pyplot <span class="keyword">as</span> plt</span><br><span class="line"><span class="keyword">import</span> networkx <span class="keyword">as</span> nx</span><br><span class="line"><span class="keyword">import</span> random</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">generate_multi_root_tree</span>(<span class="params">num_roots:<span class="built_in">int</span>, depth:<span class="built_in">int</span></span>)-&gt;nx.classes.digraph.DiGraph:</span><br><span class="line">    G = nx.DiGraph()</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 添加根节点</span></span><br><span class="line">    roots = ([<span class="string">f&quot;root_<span class="subst">&#123;i&#125;</span>&quot;</span> <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(num_roots)])</span><br><span class="line">    options=&#123;<span class="string">&quot;depth&quot;</span>:<span class="number">0</span>&#125;</span><br><span class="line">    G.add_nodes_from(roots,**options)</span><br><span class="line">    upper_layer=roots</span><br><span class="line">    <span class="keyword">for</span> d <span class="keyword">in</span> <span class="built_in">range</span>(<span class="number">1</span>,depth+<span class="number">1</span>):</span><br><span class="line">        num_nodes=random.randint(<span class="number">3</span>,<span class="number">8</span>)</span><br><span class="line">        nodes = ([<span class="string">f&quot;node_<span class="subst">&#123;d&#125;</span>_<span class="subst">&#123;i&#125;</span>&quot;</span> <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(num_nodes)])</span><br><span class="line">        options=&#123;<span class="string">&quot;depth&quot;</span>:d&#125;</span><br><span class="line">        G.add_nodes_from(nodes,**options)</span><br><span class="line">        <span class="keyword">for</span> node <span class="keyword">in</span> nodes:</span><br><span class="line">            n_links=random.randint(<span class="number">0</span>,<span class="built_in">len</span>(upper_layer))</span><br><span class="line">            rand_parents=random.sample(upper_layer,n_links)</span><br><span class="line">            edge_list=[(node,parent) <span class="keyword">for</span> parent <span class="keyword">in</span> rand_parents]</span><br><span class="line">            G.add_edges_from(edge_list)</span><br><span class="line">        upper_layer=nodes</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> G</span><br><span class="line"></span><br><span class="line">G = generate_multi_root_tree(<span class="number">3</span>, <span class="number">5</span>)</span><br><span class="line">pos = nx.layout.multipartite_layout(G,subset_key=<span class="string">&#x27;depth&#x27;</span>,align=<span class="string">&quot;horizontal&quot;</span>)</span><br><span class="line">nx.draw(G, with_labels=<span class="literal">True</span>,pos=pos)</span><br></pre></td></tr></table></figure>
+<h3 id="generate-must-have-device">Generate must-have device</h3>
+<p>从 G 中按比率 p 随机 sample
+一些点，作为必须要仿真的设备。在图中用绿色标识。</p>
+<figure class="highlight py"><table><tr><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">genarate_must_have_device</span>(<span class="params">G:nx.classes.digraph.DiGraph,p=<span class="number">0.2</span></span>)-&gt;<span class="built_in">list</span>:</span><br><span class="line">    D=[]</span><br><span class="line">    <span class="keyword">for</span> node <span class="keyword">in</span> G.nodes():</span><br><span class="line">        r=random.randint(<span class="number">0</span>,<span class="number">100</span>)</span><br><span class="line">        <span class="keyword">if</span> r&lt;<span class="number">100</span>*p:</span><br><span class="line">            D.append(node)</span><br><span class="line">    <span class="keyword">return</span> D</span><br><span class="line"></span><br><span class="line">D=genarate_must_have_device(G)</span><br><span class="line">pos = nx.layout.multipartite_layout(G,subset_key=<span class="string">&#x27;depth&#x27;</span>,align=<span class="string">&quot;horizontal&quot;</span>)</span><br><span class="line">nx.draw(G, with_labels=<span class="literal">True</span>,pos=pos)</span><br><span class="line">nx.draw_networkx_nodes(G, pos, nodelist=D, node_color=<span class="string">&#x27;green&#x27;</span>)</span><br><span class="line">plt.show()</span><br></pre></td></tr></table></figure>
+<h3 id="search-static-safe-boundary-of-datacenter">Search static safe
+boundary of datacenter</h3>
+<p>搜索保证边界安全静态要仿真的所有设备，在图中用黄色标识。</p>
+<figure class="highlight py"><table><tr><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">find_safe_dc_boundary</span>(<span class="params">G:nx.classes.digraph.DiGraph,D:<span class="built_in">list</span></span>)-&gt;<span class="built_in">list</span>:</span><br><span class="line">    D_=<span class="built_in">set</span>()</span><br><span class="line">    D=<span class="built_in">set</span>(D)</span><br><span class="line">    <span class="keyword">while</span> <span class="built_in">len</span>(D)!=<span class="number">0</span>:</span><br><span class="line">        d=D.pop()</span><br><span class="line">        D_.add(d)</span><br><span class="line">        depth=G.nodes[d][<span class="string">&#x27;depth&#x27;</span>]</span><br><span class="line">        </span><br><span class="line">        <span class="keyword">if</span> depth==<span class="number">0</span>:</span><br><span class="line">            <span class="keyword">continue</span></span><br><span class="line">        upper_devs=<span class="built_in">list</span>(G.neighbors(d))</span><br><span class="line">        </span><br><span class="line">        <span class="keyword">for</span> ud <span class="keyword">in</span> upper_devs:</span><br><span class="line">            <span class="keyword">if</span> ud <span class="keyword">not</span> <span class="keyword">in</span> D.union(D_):</span><br><span class="line">                D.add(ud)</span><br><span class="line">    <span class="keyword">return</span> <span class="built_in">list</span>(D_)</span><br><span class="line"></span><br><span class="line">D_=find_safe_dc_boundary(G,D) </span><br><span class="line">pos = nx.layout.multipartite_layout(G,subset_key=<span class="string">&#x27;depth&#x27;</span>,align=<span class="string">&quot;horizontal&quot;</span>)</span><br><span class="line">nx.draw(G, with_labels=<span class="literal">True</span>,pos=pos)</span><br><span class="line">nx.draw_networkx_nodes(G, pos, nodelist=D_, node_color=<span class="string">&#x27;yellow&#x27;</span>)</span><br><span class="line">plt.show()</span><br></pre></td></tr></table></figure>
+]]></content>
+      <categories>
+        <category>Paper Reading</category>
+      </categories>
+      <tags>
+        <tag>Network</tag>
+        <tag>Network Emulating</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>MuCache</title>
+    <url>/2024/05/15/MuCache/</url>
+    <content><![CDATA[<h1 id="microservice-call-graph-caching">Microservice Call Graph
+Caching</h1>
+<h2 id="task-1-reading">Task #1: Reading</h2>
+<h3
+id="read-httpswww.cis.upenn.edusga001papersmucache-nsdi24.pdf.-especially-sec-4-sec-5-and-appendix-a-formal-proof-of-correctness.-source-code-httpsgithub.comeniacmucache">1.
+Read https://www.cis.upenn.edu/~sga001/papers/mucache-nsdi24.pdf.
+Especially Sec 4, Sec 5 and Appendix A formal proof of correctness.
+Source code: https://github.com/eniac/mucache</h3>
+<p>You can see my reading traces in the annotations of the <a
+href="./mucache-nsdi24.pdf">paper</a>.</p>
+<h3
+id="for-the-example-in-figure-4-draw-the-execution-sequence-similar-to-figure-3-to-show-how-mucache-protocol-solves-the-challenge-of-the-diamond-pattern.-what-if-the-write-and-read-operations-come-from-independent-processes-in-s1-draw-all-possible-execution-sequences.">2.
+For the example in Figure 4, draw the execution sequence (similar to
+Figure 3) to show how MuCache protocol solves the challenge of the
+“diamond” pattern. What if the write and read operations come from
+independent processes in S1? Draw all possible execution sequences.</h3>
+<h4 id="diamond-graph">Diamond Graph</h4>
+<pre class="mermaid">flowchart LR;
+    subgraph Service1
+    S1-.-> W11[W1]
+    S1-.-> W12[W1]
+    W12-.->CM1((CM1))
+    W11-.->CM1((CM1))
+    CM1-.->C1[(C1)]
+    W11-.->C1
+    end
+
+    subgraph Service2
+    S2-.-> W21[W2]
+    S2-.-> W22[W2]
+    W22-.->CM2((CM2))
+    W21-.->CM2((CM2))
+    CM2-.->C2[(C2)]
+    W21-.->C2
+    end
+
+    subgraph Service3
+    S3-.-> W31[W3]
+    S3-.-> W32[W3]
+    W32-.->CM3((CM3))
+    W31-.->CM3((CM3))
+    CM3-.->C3[(C3)]
+    W31-.->C3
+    end
+
+    subgraph Service4
+    S4-.-> W41[W4]
+    S4-.-> W42[W4]
+    W42--> D4[(D4)]
+    W42-.->CM4((CM4))
+    W41-.->CM4((CM4))
+    CM4-.->C4[(C4)]
+    W41-.->C4
+    end
+    
+    W11-->S2
+    CM2-.->CM1
+    W11-->S3
+    CM3-.->CM1
+    W21-->S4
+    CM4-.->CM2
+    W31-->S4
+    CM4-.->CM3</pre>
+<h4 id="single-process">Single Process</h4>
+<h5 id="call-stack">Call Stack</h5>
+<p>Call stack of the example in paper(with MuCache) Firstly S1 read(k)
+with trace S1--&gt;S3--&gt;S4(To prepare cache and set status). Then S1
+write(k) with trace S1--&gt;S2--&gt;S4. Eventualy S1 read(k) with trace
+S1--&gt;S3--&gt;S4.(Same as the first one, so ignore it.)
+<figure class="highlight txt"><table><tr><td class="code"><pre><span class="line">W1 preReqStart(ctx[call(&quot;read&quot;,k)])</span><br><span class="line">CM1 startHandler(call(&quot;read&quot;,k)):</span><br><span class="line">    history=[Call(&quot;read&quot;,k)]</span><br><span class="line">W1 preCall(ctx,ca):[ca=Call(&quot;read&quot;,k)]</span><br><span class="line">    readset=&#123;cid:ca&#125;</span><br><span class="line">    cache.get(ca)-&gt;None</span><br><span class="line"></span><br><span class="line">W1 call(&quot;read&quot;,k) to S3</span><br><span class="line">W3 preReqStart(ctx[call(&quot;read&quot;,k)])</span><br><span class="line">CM3 startHandler(call(&quot;read&quot;,k)):</span><br><span class="line">    history=[Call(&quot;read&quot;,k)]</span><br><span class="line">W3 preCall(ctx,ca):[ca=Call(&quot;read&quot;,k)]</span><br><span class="line">    readset=&#123;cid:ca&#125;</span><br><span class="line">    cache.get(ca)-&gt;None</span><br><span class="line"></span><br><span class="line">S3 call(&quot;read&quot;,k) to S4</span><br><span class="line">W4 preReqStart(ctx[call(&quot;read&quot;,k)])</span><br><span class="line">CM4 startHandler(call(&quot;read&quot;,k)):</span><br><span class="line">    history=[Call(&quot;read&quot;,k)]</span><br><span class="line">W4 preRead(ctx,k):</span><br><span class="line">    readsets=&#123;cid:[k]&#125;</span><br><span class="line">W4 read k from DB, get ret</span><br><span class="line">W4 preReturn(ctx, ret)</span><br><span class="line">CM4 endHandler(ca,[k],S2,ret,&#123;S1,S3,S4&#125;):</span><br><span class="line">    saved=&#123;k:(S3,ca)&#125;</span><br><span class="line"></span><br><span class="line">S4 return ret to S3</span><br><span class="line">CM3 saveHandler(ca,ret,&#123;S1,S3,S4&#125;):</span><br><span class="line">    visited=&#123;ca:&#123;S1,S3,S4&#125;&#125;</span><br><span class="line">    cache=&#123;ca:ret&#125;</span><br><span class="line">W3 preReturn(ctx,ret)</span><br><span class="line">CM3 endHandler(ca,[ca],client,ret,&#123;S1,S3,S4&#125;):</span><br><span class="line">    saved=&#123;ca:(S1,ca)&#125;</span><br><span class="line"></span><br><span class="line">S3 return ret to S1</span><br><span class="line">CM1 saveHandler(ca,ret,&#123;S1,S3,S4&#125;):</span><br><span class="line">    visited=&#123;ca:&#123;S1,S3,S4&#125;&#125;</span><br><span class="line">    cache=&#123;ca:ret&#125;</span><br><span class="line">W1 preReturn(ctx,ret)</span><br><span class="line">CM1 endHandler(ca,[ca],None,ret,&#123;S1,S3,S4&#125;):</span><br><span class="line">    saved=&#123;ca:(None,ca)&#125;</span><br><span class="line">S1 return ret</span><br><span class="line"></span><br><span class="line">S1 call(&quot;write&quot;,k,v) to S2(ignore preReqStart &amp; preCall, because &quot;write&quot; is not RO)</span><br><span class="line">S2 call(&quot;write&quot;,k,v) to S4</span><br><span class="line">S4 write(k,v) to DB: </span><br><span class="line">    DB=&#123;k:v&#125;</span><br><span class="line">W4 postWrite(k): </span><br><span class="line">CM4 invHandler(k):</span><br><span class="line">    history=[Call(ca),Inv(k)]</span><br><span class="line">    saved[k]=(S3,ca)</span><br><span class="line">    saved=&#123;&#125;</span><br><span class="line"></span><br><span class="line">CM3 invHandler(ca):</span><br><span class="line">    history=[Call(ca),Inv(ca)]</span><br><span class="line">    saved[ca]=(S1,ca)</span><br><span class="line">    saved=&#123;&#125;</span><br><span class="line">    cache=&#123;&#125;</span><br><span class="line"></span><br><span class="line">CM1 invHandler(ca):</span><br><span class="line">    history=[Call(ca),Inv(ca)]</span><br><span class="line">    saved[ca]=(None,ca)</span><br><span class="line">    saved=&#123;&#125;</span><br><span class="line">    cache=&#123;&#125;</span><br><span class="line"></span><br><span class="line">Then S1 call(&quot;read&quot;,k) would not return the cache unchanged because the cache is empty.</span><br><span class="line"></span><br><span class="line">S1 would execute call(&quot;read&quot;,k) just like the first part of the call stack above.</span><br></pre></td></tr></table></figure></p>
+<h5 id="execution-sequence">Execution Sequence</h5>
+<figure class="highlight txt"><table><tr><td class="code"><pre><span class="line">(1) C1.get(call(&quot;read&quot;,k))-&gt;None</span><br><span class="line">(2a) S1 call(&quot;read&quot;,k) to S3</span><br><span class="line">(2b) CM1.Start(call(&quot;read&quot;,k))</span><br><span class="line">(3) C3.get(call(&quot;read&quot;,k))-&gt;None</span><br><span class="line">(4a) S3 call(&quot;read&quot;,k) to S4</span><br><span class="line">(4b) CM3.Start(call(&quot;read&quot;,k))</span><br><span class="line">(5) CM4.Start(call(&quot;read&quot;,k))</span><br><span class="line">(6) Read(k)</span><br><span class="line">(7a) S4 return ret to S3</span><br><span class="line">(7b) CM4 End(call(&quot;read&quot;,k),&#123;k&#125;,ret)</span><br><span class="line">(8) CM3.Save call(&quot;read&quot;,k)-&gt;ret</span><br><span class="line">(9) C3.set(call(&quot;read&quot;,k))-&gt;ret</span><br><span class="line">(9a) S3 return ret to S1</span><br><span class="line">(9b) CM3 End(call(&quot;read&quot;,k),&#123;call(&quot;read&quot;,k)&#125;,ret)</span><br><span class="line">(10) CM1.Save call(&quot;read&quot;,k)-&gt;ret</span><br><span class="line">(11) C1.set(call(&quot;read&quot;,k))-&gt;ret</span><br><span class="line">(12) return ret</span><br><span class="line"></span><br><span class="line">(13) S1 call(&quot;write&quot;,k,v) to S2</span><br><span class="line">(14) S2 call(&quot;write&quot;,k,v) to S4</span><br><span class="line">(15) S4 Write(k,v)</span><br><span class="line">(16) CM4.Inv(k)</span><br><span class="line">(17) CM3.Inv(call(&quot;read&quot;,k)) </span><br><span class="line">(18) C3.delete(call(&quot;read&quot;,k))</span><br><span class="line">(19) CM1.Inv(call(&quot;read&quot;,k))</span><br><span class="line">(20) C1.delete(call(&quot;read&quot;,k))</span><br><span class="line"></span><br><span class="line">(21) C1.get(call(&quot;read&quot;,k))-&gt;None</span><br><span class="line">(22) ......(Same as (1)-(12))</span><br></pre></td></tr></table></figure>
+<h4 id="multiple-independent-process">Multiple Independent Process</h4>
+<pre class="mermaid">flowchart LR
+    S1-->|W|S2
+    S2-->|W|S4
+    S1-->|R|S3
+    S3-->|R|S4</pre>
+<p>Ignore the equivalent modulo reordering traces.</p>
+<p>If, as in the case of a single process, there is a cache for
+call("read", k) in S1, then there are only two possibilities:</p>
+<ol type="1">
+<li>After Inv propagation back to S1, the Read propagation follows the
+trace S1 -&gt; S3 -&gt; S4, consistent with the trace of the single
+process mentioned earlier.</li>
+<li>If Inv has not yet propagated back to S1, then the read operation
+directly returns the content from the cache. <figure class="highlight txt"><table><tr><td class="code"><pre><span class="line">Write</span><br><span class="line">......</span><br><span class="line">Read(k)</span><br><span class="line">C1.get(ca)--&gt;ret</span><br><span class="line">S1 return ret</span><br><span class="line">......</span><br><span class="line">C1.Inv(ca)</span><br><span class="line">......</span><br></pre></td></tr></table></figure></li>
+</ol>
+<p>Let's consider the case where there is no cache entry for read(k) in
+S1.</p>
+<ol type="1">
+<li>In CM4, if Inv(k) arrives before End(read...) is reached, then the
+information about the cache entry for k is not yet recorded in saved,
+and Inv(k) cannot propagate along S4--&gt;S3--&gt;S1. Also, it cannot
+send Save information to S3. However, since CM3 has not received
+Inv(ca), it sends Save to CM1. <figure class="highlight txt"><table><tr><td class="code"><pre><span class="line">(1) C1.get(call(&quot;read&quot;,k))-&gt;None</span><br><span class="line">(2a) S1 call(&quot;read&quot;,k) to S3</span><br><span class="line">(2b) CM1.Start(call(&quot;read&quot;,k))</span><br><span class="line">(3) C3.get(call(&quot;read&quot;,k))-&gt;None</span><br><span class="line">(4a) S3 call(&quot;read&quot;,k) to S4</span><br><span class="line">(4b) CM3.Start(call(&quot;read&quot;,k))</span><br><span class="line">(5) CM4.Start(call(&quot;read&quot;,k))</span><br><span class="line">(6) Read(k)-&gt;ret</span><br><span class="line"></span><br><span class="line">(7) S1 call(&quot;write&quot;,k,v) to S2</span><br><span class="line">(8) S2 call(&quot;write&quot;,k,v) to S4</span><br><span class="line">(9) S4 Write(k,v)</span><br><span class="line"></span><br><span class="line">(1)-(6) and (7)-(9) 是同步独立进行的。</span><br><span class="line"></span><br><span class="line">(10) Inv(k)</span><br><span class="line">(11a) CM4 End(call(&quot;read&quot;,k),&#123;k&#125;,ret)</span><br><span class="line">(11b) S4 return ret to S3</span><br><span class="line"></span><br><span class="line">(12a) S3 return ret to S1</span><br><span class="line">(12b) CM3 End(call(&quot;read&quot;,k),&#123;call(&quot;read&quot;,k)&#125;,ret)</span><br><span class="line">(13) CM1.Save call(&quot;read&quot;,k)-&gt;ret</span><br><span class="line">(14) C1.set(call(&quot;read&quot;,k))-&gt;ret</span><br><span class="line">(15) return ret</span><br></pre></td></tr></table></figure></li>
+<li>In CM4, if Inv(k) arrives after End(read...), then let's consider
+the situation in CM3 (keeping in mind that Save and Inv cannot be
+reordered, so Save should arrive before Inv in CM3, and similarly in
+CM1): <figure class="highlight txt"><table><tr><td class="code"><pre><span class="line">(1) C1.get(call(&quot;read&quot;,k))-&gt;None</span><br><span class="line">(2a) S1 call(&quot;read&quot;,k) to S3</span><br><span class="line">(2b) CM1.Start(call(&quot;read&quot;,k))</span><br><span class="line">(3) C3.get(call(&quot;read&quot;,k))-&gt;None</span><br><span class="line">(4a) S3 call(&quot;read&quot;,k) to S4</span><br><span class="line">(4b) CM3.Start(call(&quot;read&quot;,k))</span><br><span class="line">(5) CM4.Start(call(&quot;read&quot;,k))</span><br><span class="line"></span><br><span class="line">(6) S1 call(&quot;write&quot;,k,v) to S2</span><br><span class="line">(7) S2 call(&quot;write&quot;,k,v) to S4</span><br><span class="line"></span><br><span class="line">(8) Read(k)</span><br><span class="line">(9) S4 Write(k,v)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">(10) CM4 End(call(&quot;read&quot;,k),&#123;k&#125;,ret)</span><br><span class="line">(11) S4 return ret to S3</span><br><span class="line">(12) Inv(k)</span><br></pre></td></tr></table></figure>
+<ul>
+<li><p>Save--&gt;Inv--&gt;End <figure class="highlight txt"><table><tr><td class="code"><pre><span class="line">(13) CM3.Save(ca)-&gt;ret;C3.set(ca,ret)</span><br><span class="line">(14) CM3.Inv(ca);C3.delete(ca)</span><br><span class="line">(15) CM3.End(ca,...)</span><br><span class="line">(16) S3 return ret to S1</span><br><span class="line">(17) CM1.End(ca,...)</span><br><span class="line">(18) return ret</span><br></pre></td></tr></table></figure></p></li>
+<li><p>End--&gt;Save--Inv <figure class="highlight txt"><table><tr><td class="code"><pre><span class="line">(13) CM3.End(ca,...)</span><br><span class="line">(14) CM3.Save(ca)-&gt;ret;C3.set(ca,ret)</span><br><span class="line">(15) CM3.Inv(ca);C3.delete(ca)</span><br><span class="line">(16) S3 return ret to S1</span><br><span class="line">(17) CM1.End(ca,...)</span><br><span class="line">(18) CM1.Save(ca)-&gt;ret;C1.set(ca,ret)</span><br><span class="line">(19) CM1.Inv(ca);C1.delete(ca)</span><br><span class="line">(20) return ret</span><br></pre></td></tr></table></figure></p></li>
+</ul></li>
+</ol>
+<h3
+id="choose-a-microservice-and-provide-a-few-example-function-calls-to-simulate-which-data-could-be-cached-and-simulate-a-cache-hit-and-a-cache-miss.-you-may-choose-any-cache-size-and-eviction-policy-you-like">3.
+Choose a microservice and provide a few example function calls to
+simulate which data could be cached, and simulate a cache hit and a
+cache miss. (You may choose any cache size and eviction policy you
+like)</h3>
+<h4 id="initialization">Initialization</h4>
+<p>Cache size: 2 Eviction policy: LRU Microservice:</p>
+<pre class="mermaid">classDiagram
+class client
+class frontend
+class pic_manager
+class text_manager
+
+class text_database
+class pic_database
+    
+client-->frontend
+frontend-->pic_manager
+pic_manager-->pic_database
+frontend-->text_manager
+text_manager-->text_database</pre>
+<p>All caches and states are empty at the beginning.</p>
+<h4 id="function-sequence">Function Sequence</h4>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">   download_text(name1)</span><br><span class="line">--&gt;download_text(name2)</span><br><span class="line">--&gt;download_pic(name3)</span><br><span class="line">--&gt;uploadpic(name3,pic2)</span><br><span class="line">--&gt;download_text(name2)</span><br></pre></td></tr></table></figure>
+<h4 id="memory-states">Memory States</h4>
+<p>Only simulate the memory states.</p>
+<pre class="mermaid">---
+title: Init
+---
+classDiagram
+class client
+class frontend
+class pic_manager
+class text_manager
+
+class text_database
+text_database: name1->txt1
+text_database: name2->txt2
+class pic_database
+pic_database: name3->pic1
+    
+client-->frontend
+frontend-->pic_manager
+pic_manager-->pic_database
+frontend-->text_manager
+text_manager-->text_database</pre>
+<pre class="mermaid">---
+title: download_text(name1), cache miss
+---
+classDiagram
+
+class client
+client: download_text(name1)->txt1
+class frontend
+frontend: download_text(name1)->txt1
+class pic_manager
+class text_manager
+text_manager: download_text(name1)->txt1
+
+class text_database
+text_database: name1->txt1
+text_database: name2->txt2
+class pic_database
+pic_database: name3->pic1
+
+
+client-->frontend:download
+frontend-->pic_manager
+pic_manager-->pic_database
+frontend-->text_manager:download
+text_manager-->text_database:download
+text_database-->text_manager:save
+text_manager-->frontend:save
+frontend-->client:save</pre>
+<pre class="mermaid">---
+title: download_text(name2), cache miss
+---
+classDiagram
+
+class client
+client: download_text(name1)->txt1
+client: download_text(name2)->txt2
+class frontend
+frontend: download_text(name1)->txt1
+frontend: download_text(name2)->txt2
+
+class pic_manager
+class text_manager
+text_manager: download_text(name1)->txt1
+text_manager: download_text(name2)->txt2
+
+class text_database
+text_database: name1->txt1
+text_database: name2->txt2
+class pic_database
+pic_database: name3->pic1
+
+
+client-->frontend:download
+frontend-->pic_manager
+pic_manager-->pic_database
+frontend-->text_manager:download
+text_manager-->text_database:download
+text_database-->text_manager:save
+text_manager-->frontend:save
+frontend-->client:save</pre>
+<pre class="mermaid">---
+title: download_pic(name3), cache miss/eviction
+---
+classDiagram
+
+class client
+client: download_text(name2)->txt2
+client: download_pic(name3)->pic1
+class frontend
+frontend: download_text(name2)->txt2
+frontend: download_pic(name3)->pic1
+
+class pic_manager
+pic_manager: download_pic(name3)->pic1
+class text_manager
+text_manager: download_text(name1)->txt1
+text_manager: download_text(name2)->txt2
+
+class text_database
+text_database: name1->txt1
+text_database: name2->txt2
+class pic_database
+pic_database: name3->pic1
+
+
+client-->frontend:download
+frontend-->pic_manager:download
+pic_manager-->pic_database:download
+frontend-->text_manager
+text_manager-->text_database
+pic_database-->pic_manager:save
+pic_manager-->frontend:save
+frontend-->client:save</pre>
+<pre class="mermaid">---
+title: uploadpic(name3,pic2), cache invalidate
+---
+classDiagram
+
+class client
+client: download_text(name2)->txt2
+class frontend
+frontend: download_text(name2)->txt2
+
+class pic_manager
+class text_manager
+text_manager: download_text(name1)->txt1
+text_manager: download_text(name2)->txt2
+
+class text_database
+text_database: name1->txt1
+text_database: name2->txt2
+class pic_database
+pic_database: name3->pic2
+
+
+client-->frontend:upload
+frontend-->pic_manager:upload
+pic_manager-->pic_database:upload
+frontend-->text_manager
+text_manager-->text_database
+pic_database-->pic_manager:inv
+pic_manager-->frontend:inv
+frontend-->client:inv</pre>
+<pre class="mermaid">---
+title: download_text(name2), cache hit
+---
+classDiagram
+
+class client
+client: download_text(name2)->txt2
+class frontend
+frontend: download_text(name2)->txt2
+
+class pic_manager
+class text_manager
+text_manager: download_text(name1)->txt1
+text_manager: download_text(name2)->txt2
+
+class text_database
+text_database: name1->txt1
+text_database: name2->txt2
+class pic_database
+pic_database: name3->pic2
+
+
+client-->frontend
+frontend-->pic_manager
+pic_manager-->pic_database
+frontend-->text_manager
+text_manager-->text_database</pre>
+<h2 id="task-2-coding">Task #2: Coding</h2>
+<blockquote>
+<p>Summarize the key components to apply the MuCache protocol, and
+implement an example to show that the datastore is linearizable. Note:
+We are not asking you to build and run the open-source version of
+MuCache (you may use it as a reference). Please implement your own
+version of MuCache protocol (just a prototype to show the key ideas).
+You may remove any component you think is not critical in the design,
+and use simple functions to simulate the behavior of each service/thread
+in your code.</p>
+</blockquote>
+<p>Please refer to the code <a href="./mucache">mucache</a> and <a
+href="./mucache/README.md">readme</a>.</p>
+]]></content>
+      <categories>
+        <category>Paper Reading</category>
+      </categories>
+      <tags>
+        <tag>MicroService</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Parsimon</title>
+    <url>/2024/05/15/Parsimon/</url>
+    <content><![CDATA[<h1 id="fast-flow-level-network-simulation">Fast Flow-level Network
+Simulation</h1>
+<h2 id="task-1-reading-writing">Task #1 Reading &amp; Writing:</h2>
+<h3 id="read-httpsarxiv.orgpdf2205.01234.pdf">1.1. Read
+https://arxiv.org/pdf/2205.01234.pdf</h3>
+<p>You can see my reading traces in the annotations of the <a
+href="./parsimon-nsdi23.pdf">paper</a>.</p>
+<h3
+id="conclude-the-key-idea-of-the-paper-explain-the-algorithm-and-analyze-its-sources-of-speedup-and-sources-of-error.">1.2.
+Conclude the key idea of the paper, explain the algorithm, and analyze
+its sources of speedup and sources of error.</h3>
+<h4 id="key-idea-the-algorithm">1.2.1 Key Idea &amp; The Algorithm</h4>
+<p>假设： 1. Data center 中拥塞通常不是同时出现的，而是零散、突发的。 2.
+交换机队列的状态近似符合排队论的结果，仅与网络流量有关，所以我们可以独立分析每个队列。</p>
+<p>因此，我们可以对路径上每个 link
+处的拥塞时间建模。当近似模拟在大规模网络上运行特定工作负载时端到端流量性能的分布时，我们可以聚合路径拥塞分布，以得到总的性能分布。</p>
+<p>具体而言，算法步骤如下（做了一定的简化，因为会在后面的数学形式化部分详细谈到）：</p>
+<ol type="1">
+<li>Decomposition:
+<ul>
+<li>生成每个 link 的 workload: 包含所有经过该 link 的 workflow</li>
+<li>生成 link-level topology</li>
+</ul></li>
+<li>Clustering: 根据每个 link 的 workload，对 workload 相似的 link
+聚类。</li>
+<li>Simulation: 从每个 cluster 中抽样一个 link 作为代表，对该 link 及其
+workload 做 link-level simulation，得到该 link delay 关于 flowsize
+的桶分布，该 cluster 中其他 link 的分布与代表 link 相同。</li>
+<li>Aggregation: 给定一条具有 size，path 的 workflow，对 path 中的每个
+link，query link 的桶分布（用 size）得到对应的
+bucket，再用蒙特卡洛采样，从该 bucket 取出一个 delay 作为该 link
+的delay。将路径中所有 link 的 delay 累加，就得到该 workload 的
+delay。重复多次，就可以得到 flow-level distribution.</li>
+</ol>
+<h4 id="sources-of-speedup">1.2.2. Sources of Speedup</h4>
+<ol type="1">
+<li>将 flow-level simulation 拆解成了独立的 link-level
+simulation，可以并行化处理，允许扩展模拟网络的大小和处理核心的数量。</li>
+<li>在建立 flow-level topology 时，运用了独特的技术，使得 topology
+最多有 3-hop，降低了 simulation 的规模。</li>
+<li>没有对所有 link 做 link-level simulation，而是做了
+clustering，从中选取一个代表做 link-level simulation。</li>
+<li>Aggregation 时，没有对路径上的所有分布做 convolution，而是 sample
+出一个点做累加。</li>
+</ol>
+<h4 id="sources-of-error">1.2.3. Sources of Error</h4>
+<ol type="1">
+<li>Bottleneck fan-in: Parsimon 在构建 link-level topology 时，将
+potential source hosts 直接连到了目标 link，并没有模拟 upstream
+的实际情况。这导致模拟中的拥塞和排队情况比实际中更重，因为并没有真实的
+upstream links 来 smoothing burst flow。另外，这会略微高估 downstream
+造成的延迟。</li>
+<li>Lack of traffic smoothing: 在真实网络中，前往目标 link 的
+cross-traffic 会被 smoothed，但因为 link-level topology 里无
+cross-traffic，会在 simulation 时稍微高估目标 link 的排队延迟。</li>
+<li>Link-level independence: Parsimon 假设 link-level simulation
+可以独立处理，但这忽略了 flow path 上各 hop
+的流量相关性，引入了误差。</li>
+<li>One bottleneck at a time: 当拥塞是间歇和暂时的，不同时候出现在不同的
+link
+上时，Parsimon更准确；当拥塞跨越给定路径的多个边缘和核心链路时，准确性较低。导致高估
+long flow end-to-end latency。</li>
+<li>Clustering: 由于在 simulation 中使用了 clustering，引入了 actual
+link delay distribution 与 representative link delay distribution
+之间的误差。</li>
+<li>Sampling: Aggregation 时，是从 link-level daley distribution 中
+sample 一个点，而非对整个 delay 做 convolution。</li>
+</ol>
+<h3
+id="how-would-you-utilize-machine-learning-algorithms-to-make-flow-level-network-simulation-faster-and-more-precise">1.3.
+How would you utilize machine learning algorithms to make flow-level
+network simulation faster and more precise?</h3>
+<ol type="1">
+<li>在处理 link-level distribution 时，运用 machine learning
+algorithm(maybe mlp)，为 每个 link train 出一个以 workflow information
+为输入，delay 为输出的函数。当针对给定 workflow 做 aggregation
+时，使用这个函数来得到该 workflow 在对应 link 的 delay。</li>
+<li>改进 clustering 算法，使用诸如 K-means 的算法。</li>
+</ol>
+<h2 id="task-2-math-formulation">Task #2 Math formulation:</h2>
+<blockquote>
+<p>In section 3, the paper shows how Parsimon decomposes the network
+simulation into a series of link-level simulations, and how it
+aggregates the result, please formulate this process. (You can summarize
+the fast link-level simulation algorithm in section 4.1 as a function
+without further explanation. You are also allowed to ignore some of the
+technique details in your formulation)</p>
+</blockquote>
+<p><span class="math inline">\(\text{Given network topology as
+undirected graph }G=(V,E).\)</span></p>
+<p><span class="math inline">\(\text{Given workflow routes
+}WF.\)</span></p>
+<h3 id="generating-link-level-workloads">2.1. Generating Link-Level
+Workloads</h3>
+<p><span class="math inline">\(\forall link \in
+E,(u,v)=link.nodes,WL_{&lt;u,v&gt;}=\{wf|wf \in WF \wedge (\exists
+i&lt;j\text{, s.t. }wf.nodes[i]=u\wedge wf.nodes[j]=v)\}\)</span> <span
+class="math inline">\(WL_{&lt;v,u&gt;}=\{wf|wf \in WF \wedge (\exists
+i&gt;j\text{, s.t. }wf.nodes[i]=u\wedge wf.nodes[j]=v)\}\)</span></p>
+<h3 id="generating-link-level-topologies">2.2. Generating Link-Level
+Topologies</h3>
+<p><span class="math inline">\(\forall link\in E,
+(u,v)=link.nodes\)</span></p>
+<p><span class="math inline">\(\text{The link-level toplogy
+}LinkTopo_{&lt;u,v&gt;}=(V_{&lt;u,v&gt;},E_{&lt;u,v&gt;}).\)</span></p>
+<p>Suppose the traffic through the link <span
+class="math inline">\(&lt;u,v&gt;\)</span> originates from sources <span
+class="math inline">\(S_{&lt;u,v&gt;}\)</span> and terminates in
+destinations <span class="math inline">\(T_{&lt;u,v&gt;}\)</span> .</p>
+<p><span class="math inline">\(\text{Let }S_{&lt;u,v&gt;}:=\{wf.begin|
+wf \in WL_{&lt;u,v&gt;}\},wf.begin=wf[0].\)</span></p>
+<p><span class="math inline">\(\text{Let }T_{&lt;u,v&gt;}:=\{wf.end|wf
+\in WL_{&lt;u,v&gt;}\},wf.end=wf[wf.length-1].\)</span></p>
+<p><span class="math inline">\(\text{If }u.type=host\wedge
+v.type=switch,V_{&lt;u,v&gt;}=\{u,v\}\cup
+T_{&lt;u,v&gt;},E_{&lt;u,v&gt;}=\{newLink(u,v,mainlink)\} \cup
+\{newLink(v,h,downstream)|h \in T_{&lt;u,v&gt;}\}\text{, function
+newLink generates a new link object.}\)</span></p>
+<p><span class="math inline">\(\text{If }u.type=switch\wedge
+v.type=switch,V_{&lt;u,v&gt;}=\{u,v\}\cup T_{&lt;u,v&gt;}\cup
+S_{&lt;u,v&gt;},E_{&lt;u,v&gt;}=\{newLink(u,v,mainlink)\} \cup
+\{newLink(v,h,downstream)|h \in T_{&lt;u,v&gt;}\}\cup \{
+newLink(h,u,upstream)|h\in S_{&lt;u,v&gt;} \}.\)</span></p>
+<p><span class="math inline">\(\text{If }u.type=switch\wedge
+v.type=host,V_{&lt;u,v&gt;}=\{u,v\}\cup
+S_{&lt;u,v&gt;},E_{&lt;u,v&gt;}=\{newLink(u,v,ismainlink)\} \cup
+\{newLink(h,u,upstream)|h \in S_{&lt;u,v&gt;}\}.\)</span></p>
+<p><span class="math inline">\(LinkTopo_{&lt;v,u&gt;} \text{ would be
+genareted by the same way above.}\)</span></p>
+<h4 id="modeling-round-trip-delay">2.2.1. Modeling Round-Trip Delay</h4>
+<p><span class="math inline">\(\forall link \in
+E_{&lt;u,v&gt;}.\)</span></p>
+<p><span class="math inline">\(\text{Then the link has the only
+correspond workflow }wf\text{, s.t. }wf\in WL_{&lt;u,v&gt;}\wedge
+(\exists i&lt;j, wf.nodes[i]=u \wedge wf.nodes[j]=v).\)</span></p>
+<p><span class="math inline">\(\text{Therefore we could got the latency
+of the link
+}link.latency=\sum_{k=i}^{j-1}getLink(wf.nodes[k],wf.nodes[k+1]).latency.\)</span></p>
+<p><span class="math inline">\(\text{Let }getLink(u,v):=e \text{ if
+}e\in E \wedge e.nodes=(u,v).\)</span></p>
+<h4 id="selecting-link-bandwidths">2.2.2. Selecting Link Bandwidths</h4>
+<p><span class="math inline">\(\text{We should increase the bandwidth of
+downstream links.}\)</span></p>
+<p><span class="math inline">\(\forall link \in
+E_{&lt;u,v&gt;}.\)</span></p>
+<p><span class="math inline">\(\text{If }link.type=downstream\text{,
+then }link.bandwidth=addBandwidth(link)\text{, the function addBandwidth
+would increase the bandwidth of the link.}\)</span></p>
+<h4 id="correcting-for-ack-traffic">2.2.3. Correcting for ACK
+Traffic</h4>
+<p>This part is too detailed, so I omitted it.</p>
+<h3 id="post-processing-link-level-results">2.3. Post-Processing
+Link-Level Results</h3>
+<p><span class="math inline">\(\forall link \in
+E,(u,v)=link.nodes.\)</span></p>
+<p><span class="math inline">\(\forall wf \in
+WL_{&lt;u,v&gt;}.\)</span></p>
+<p><span class="math inline">\(\text{We generate the FCT of the workflow
+in the link, }
+FCT_{&lt;u,v&gt;,wf}:=Simulate(LinkTopo_{&lt;u,v&gt;},wf).\)</span></p>
+<p><span class="math inline">\(\text{Let ideal FCT of the link for the
+workflow
+}IdealFCT_{&lt;u,v&gt;,wf}:=link.latency+wf.size/link.bandwidth.\)</span></p>
+<p><span class="math inline">\(\text{Let latency of the link for the
+workflow
+}Delay_{&lt;u,v&gt;,wf}:=FCT_{&lt;u,v&gt;,wf}-IdealFCT_{&lt;u,v&gt;,wf}\)</span>.</p>
+<h4 id="packet-normalized-delay">2.3.1. Packet-Normalized Delay</h4>
+<p><span class="math inline">\(\text{Let packet-normalized delay
+}NormDelay_{&lt;u,v&gt;,wf}:=Delay_{&lt;u,v&gt;,wf}/wf.packetsize.\)</span></p>
+<h4 id="bucketing-distributions">2.3.2. Bucketing Distributions</h4>
+<p><span class="math inline">\(\text{Let set of packet-normalized delay
+for the link of each workflow
+}NormDelay_{&lt;u,v&gt;}:=\{NormDelay_{&lt;u,v&gt;,wf}|wf \in
+WL_{&lt;u,v&gt;}\}.\)</span></p>
+<p><span class="math inline">\(\text{Given hyper-parameters
+x,B}\)</span>.</p>
+<p>For each bucket <span class="math inline">\(b\)</span>, let <span
+class="math inline">\(maxf_b\)</span> and <span
+class="math inline">\(minf_b\)</span> be the maximum and minimum flow
+sizes associated with <span class="math inline">\(b\)</span>,
+respectively, and let <span class="math inline">\(n_b\)</span> be the
+number of elements in <span class="math inline">\(b\)</span>. Each
+bucket <span class="math inline">\(b\)</span> apart from the last one is
+locally subject to two constraints:</p>
+<p><span class="math display">\[n_b \ge B \text{ and } maxf_b \ge
+x*minf_b\]</span></p>
+<p>The algorithm to generate buckets and bucketing distribution:</p>
+<figure class="highlight py"><table><tr><td class="code"><pre><span class="line"><span class="keyword">global</span> B,x</span><br><span class="line"><span class="keyword">def</span> <span class="title function_">GenerateBuckets</span>(<span class="params">NormDelay</span>):</span><br><span class="line">    BD=[]</span><br><span class="line">    NormDelay.sort(by=wf_size) <span class="comment"># sorted by the flow size, not packet size</span></span><br><span class="line">    nb=<span class="number">0</span></span><br><span class="line">    maxfb=INT_MIN</span><br><span class="line">    minfb=INT_MAX</span><br><span class="line">    bucket=[]</span><br><span class="line">    <span class="keyword">for</span> delay <span class="keyword">in</span> NormDelay:</span><br><span class="line">        bucket.append(delay)</span><br><span class="line">        maxfb=<span class="built_in">max</span>(delay,maxfb)</span><br><span class="line">        minfb=<span class="built_in">min</span>(delay,minfb)</span><br><span class="line">        nb=nb+<span class="number">1</span></span><br><span class="line">        <span class="keyword">if</span> nb&gt;=B <span class="keyword">and</span> maxfb&gt;=x*minfb:</span><br><span class="line">            BD.append(copy.deepcopy(bucket))</span><br><span class="line">            bucket=[]</span><br><span class="line">            nb=<span class="number">0</span></span><br><span class="line">            maxfb=INT_MIN</span><br><span class="line">            minfb=INT_MAX</span><br><span class="line">    <span class="keyword">return</span> BD</span><br></pre></td></tr></table></figure>
+<p><span class="math inline">\(\text{Then we get the bucketing
+distribution of packet-normalized delay for the link
+}BD_{&lt;u,v&gt;}:=\{Bucket_{&lt;u,v&gt;,i}\}=GenerateBuckets(NormDelay_{&lt;u,v&gt;}).\)</span></p>
+<h3 id="aggregating-link-level-estimates">2.4. Aggregating Link-Level
+Estimates</h3>
+<p><span class="math inline">\(\text{Given }size,S,D \text{ as size,
+source and destination, then Parsimon compute the path from source to
+destination }Path=computePath(size,S,D,G).\)</span></p>
+<p><span class="math inline">\(\forall i, \vec{v_i}=&lt;u_i,v_i&gt;
+=Path[i].\)</span></p>
+<p><span class="math inline">\(\text{By querying the bucketing
+distribution by } size\text{, we obtain }\)</span></p>
+<p><span class="math inline">\(Bucket_i\in BD_{&lt;u_i,v_i&gt;}\text{,
+s.t. }size\ge min(BD_{&lt;u_i,v_i&gt;}) \wedge size\le
+max(BD_{&lt;u_i,v_i&gt;}).\)</span></p>
+<p><span class="math inline">\(\text{Then randomly sample a point from
+the bucket }D_i^* \stackrel{}{\leftarrow} Bucket_i.\)</span></p>
+<p><span class="math inline">\(\text{The end-to-end absolute delay } D
+\text{ is computed as }D=P\sum_{i}D_i^*\text{, where } P \text{ is the
+input flow size in packets.}\)</span></p>
+<h2 id="task-3-programming">Task #3 Programming:</h2>
+<blockquote>
+<p>Can you implement and test Algorithm 1 with a sample network? You may
+also refer to Appendix D for some details.</p>
+</blockquote>
+<p>Please refer to the test code <a
+href="./algorithm.ipynb">algorithm.ipynb</a> and the source code <a
+href="./clustering/">clustering</a>.</p>
+]]></content>
+      <categories>
+        <category>Paper Reading</category>
+      </categories>
+      <tags>
+        <tag>Network</tag>
+        <tag>Network Simulation</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>ZeroQuant</title>
+    <url>/2024/05/15/ZeroQuant/</url>
+    <content><![CDATA[
+]]></content>
+      <categories>
+        <category>Paper Reading</category>
+      </categories>
+      <tags>
+        <tag>MLSys</tag>
+        <tag>LLM</tag>
+        <tag>Quantization</tag>
+      </tags>
+  </entry>
+</search>

@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha256-XOqroi11tY4EFQMR9ZYwZWKj5ZXiftSx36RRuC3anlA=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"novapigeon.github.io","root":"/","images":"/images","scheme":"Gemini","darkmode":false,"version":"8.20.0","exturl":true,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"copycode":{"enable":true,"style":"mac"},"fold":{"enable":true,"height":500},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":true,"comments":{"style":"tabs","active":"giscus","storage":true,"lazyload":true,"nav":null,"activeClass":"giscus"},"stickytabs":true,"motion":{"enable":true,"async":false,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"搜索...","empty":"没有找到任何搜索结果：${query}","hits_time":"找到 ${hits} 个搜索结果（用时 ${time} 毫秒）","hits":"找到 ${hits} 个搜索结果"},"path":"/search.xml","localsearch":{"enable":true,"trigger":"auto","top_n_per_article":-1,"unescape":true,"preload":true}}</script><script src="/js/config.js"></script>
+
+    <meta name="description" content="Scalable Tail Latency Estimation for Data Center Networks.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Parsimon">
+<meta property="og:url" content="https://novapigeon.github.io/2024/05/15/Parsimon/index.html">
+<meta property="og:site_name" content="NovaPigeon&#39;s Blog">
+<meta property="og:description" content="Scalable Tail Latency Estimation for Data Center Networks.">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2024-05-15T10:16:25.000Z">
+<meta property="article:modified_time" content="2024-05-15T11:17:53.160Z">
+<meta property="article:author" content="NovaPigeon">
+<meta property="article:tag" content="Network">
+<meta property="article:tag" content="Network Simulation">
+<meta name="twitter:card" content="summary">
+
+
+<link rel="canonical" href="https://novapigeon.github.io/2024/05/15/Parsimon/">
+
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh-CN","comments":true,"permalink":"https://novapigeon.github.io/2024/05/15/Parsimon/","path":"2024/05/15/Parsimon/","title":"Parsimon"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>Parsimon | NovaPigeon's Blog</title>
+  
+
+
+
+
+
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">NovaPigeon's Blog</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">代大匠斫者</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="搜索" role="button">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a></li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup"><div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off" maxlength="80"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close" role="button">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div class="search-result-container no-result">
+  <div class="search-result-icon">
+    <i class="fa fa-spinner fa-pulse fa-5x"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#fast-flow-level-network-simulation"><span class="nav-number">1.</span> <span class="nav-text">Fast Flow-level Network
+Simulation</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#task-1-reading-writing"><span class="nav-number">1.1.</span> <span class="nav-text">Task #1 Reading &amp; Writing:</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#read-httpsarxiv.orgpdf2205.01234.pdf"><span class="nav-number">1.1.1.</span> <span class="nav-text">1.1. Read
+https:&#x2F;&#x2F;arxiv.org&#x2F;pdf&#x2F;2205.01234.pdf</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#conclude-the-key-idea-of-the-paper-explain-the-algorithm-and-analyze-its-sources-of-speedup-and-sources-of-error."><span class="nav-number">1.1.2.</span> <span class="nav-text">1.2.
+Conclude the key idea of the paper, explain the algorithm, and analyze
+its sources of speedup and sources of error.</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#key-idea-the-algorithm"><span class="nav-number">1.1.2.1.</span> <span class="nav-text">1.2.1 Key Idea &amp; The Algorithm</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#sources-of-speedup"><span class="nav-number">1.1.2.2.</span> <span class="nav-text">1.2.2. Sources of Speedup</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#sources-of-error"><span class="nav-number">1.1.2.3.</span> <span class="nav-text">1.2.3. Sources of Error</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#how-would-you-utilize-machine-learning-algorithms-to-make-flow-level-network-simulation-faster-and-more-precise"><span class="nav-number">1.1.3.</span> <span class="nav-text">1.3.
+How would you utilize machine learning algorithms to make flow-level
+network simulation faster and more precise?</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#task-2-math-formulation"><span class="nav-number">1.2.</span> <span class="nav-text">Task #2 Math formulation:</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#generating-link-level-workloads"><span class="nav-number">1.2.1.</span> <span class="nav-text">2.1. Generating Link-Level
+Workloads</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#generating-link-level-topologies"><span class="nav-number">1.2.2.</span> <span class="nav-text">2.2. Generating Link-Level
+Topologies</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#modeling-round-trip-delay"><span class="nav-number">1.2.2.1.</span> <span class="nav-text">2.2.1. Modeling Round-Trip Delay</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#selecting-link-bandwidths"><span class="nav-number">1.2.2.2.</span> <span class="nav-text">2.2.2. Selecting Link Bandwidths</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#correcting-for-ack-traffic"><span class="nav-number">1.2.2.3.</span> <span class="nav-text">2.2.3. Correcting for ACK
+Traffic</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#post-processing-link-level-results"><span class="nav-number">1.2.3.</span> <span class="nav-text">2.3. Post-Processing
+Link-Level Results</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#packet-normalized-delay"><span class="nav-number">1.2.3.1.</span> <span class="nav-text">2.3.1. Packet-Normalized Delay</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#bucketing-distributions"><span class="nav-number">1.2.3.2.</span> <span class="nav-text">2.3.2. Bucketing Distributions</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#aggregating-link-level-estimates"><span class="nav-number">1.2.4.</span> <span class="nav-text">2.4. Aggregating Link-Level
+Estimates</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#task-3-programming"><span class="nav-number">1.3.</span> <span class="nav-text">Task #3 Programming:</span></a></li></ol></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="NovaPigeon"
+      src="/images/avator.jpg">
+  <p class="site-author-name" itemprop="name">NovaPigeon</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">4</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">1</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">7</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://novapigeon.github.io/2024/05/15/Parsimon/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avator.jpg">
+      <meta itemprop="name" content="NovaPigeon">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="NovaPigeon's Blog">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="Parsimon | NovaPigeon's Blog">
+      <meta itemprop="description" content="Scalable Tail Latency Estimation for Data Center Networks.">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Parsimon
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+      
+
+      <time title="创建时间：2024-05-15 18:16:25 / 修改时间：19:17:53" itemprop="dateCreated datePublished" datetime="2024-05-15T18:16:25+08:00">2024-05-15</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">分类于</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Paper-Reading/" itemprop="url" rel="index"><span itemprop="name">Paper Reading</span></a>
+        </span>
+    </span>
+
+  
+    <span class="post-meta-item" title="阅读次数" id="busuanzi_container_page_pv">
+      <span class="post-meta-item-icon">
+        <i class="far fa-eye"></i>
+      </span>
+      <span class="post-meta-item-text">阅读次数：</span>
+      <span id="busuanzi_value_page_pv"></span>
+    </span>
+</div>
+
+            <div class="post-description">Scalable Tail Latency Estimation for Data Center Networks.</div>
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><h1 id="fast-flow-level-network-simulation">Fast Flow-level Network
+Simulation</h1>
+<h2 id="task-1-reading-writing">Task #1 Reading &amp; Writing:</h2>
+<h3 id="read-httpsarxiv.orgpdf2205.01234.pdf">1.1. Read
+https://arxiv.org/pdf/2205.01234.pdf</h3>
+<p>You can see my reading traces in the annotations of the <a
+href="./parsimon-nsdi23.pdf">paper</a>.</p>
+<h3
+id="conclude-the-key-idea-of-the-paper-explain-the-algorithm-and-analyze-its-sources-of-speedup-and-sources-of-error.">1.2.
+Conclude the key idea of the paper, explain the algorithm, and analyze
+its sources of speedup and sources of error.</h3>
+<h4 id="key-idea-the-algorithm">1.2.1 Key Idea &amp; The Algorithm</h4>
+<p>假设： 1. Data center 中拥塞通常不是同时出现的，而是零散、突发的。 2.
+交换机队列的状态近似符合排队论的结果，仅与网络流量有关，所以我们可以独立分析每个队列。</p>
+<p>因此，我们可以对路径上每个 link
+处的拥塞时间建模。当近似模拟在大规模网络上运行特定工作负载时端到端流量性能的分布时，我们可以聚合路径拥塞分布，以得到总的性能分布。</p>
+<p>具体而言，算法步骤如下（做了一定的简化，因为会在后面的数学形式化部分详细谈到）：</p>
+<ol type="1">
+<li>Decomposition:
+<ul>
+<li>生成每个 link 的 workload: 包含所有经过该 link 的 workflow</li>
+<li>生成 link-level topology</li>
+</ul></li>
+<li>Clustering: 根据每个 link 的 workload，对 workload 相似的 link
+聚类。</li>
+<li>Simulation: 从每个 cluster 中抽样一个 link 作为代表，对该 link 及其
+workload 做 link-level simulation，得到该 link delay 关于 flowsize
+的桶分布，该 cluster 中其他 link 的分布与代表 link 相同。</li>
+<li>Aggregation: 给定一条具有 size，path 的 workflow，对 path 中的每个
+link，query link 的桶分布（用 size）得到对应的
+bucket，再用蒙特卡洛采样，从该 bucket 取出一个 delay 作为该 link
+的delay。将路径中所有 link 的 delay 累加，就得到该 workload 的
+delay。重复多次，就可以得到 flow-level distribution.</li>
+</ol>
+<h4 id="sources-of-speedup">1.2.2. Sources of Speedup</h4>
+<ol type="1">
+<li>将 flow-level simulation 拆解成了独立的 link-level
+simulation，可以并行化处理，允许扩展模拟网络的大小和处理核心的数量。</li>
+<li>在建立 flow-level topology 时，运用了独特的技术，使得 topology
+最多有 3-hop，降低了 simulation 的规模。</li>
+<li>没有对所有 link 做 link-level simulation，而是做了
+clustering，从中选取一个代表做 link-level simulation。</li>
+<li>Aggregation 时，没有对路径上的所有分布做 convolution，而是 sample
+出一个点做累加。</li>
+</ol>
+<h4 id="sources-of-error">1.2.3. Sources of Error</h4>
+<ol type="1">
+<li>Bottleneck fan-in: Parsimon 在构建 link-level topology 时，将
+potential source hosts 直接连到了目标 link，并没有模拟 upstream
+的实际情况。这导致模拟中的拥塞和排队情况比实际中更重，因为并没有真实的
+upstream links 来 smoothing burst flow。另外，这会略微高估 downstream
+造成的延迟。</li>
+<li>Lack of traffic smoothing: 在真实网络中，前往目标 link 的
+cross-traffic 会被 smoothed，但因为 link-level topology 里无
+cross-traffic，会在 simulation 时稍微高估目标 link 的排队延迟。</li>
+<li>Link-level independence: Parsimon 假设 link-level simulation
+可以独立处理，但这忽略了 flow path 上各 hop
+的流量相关性，引入了误差。</li>
+<li>One bottleneck at a time: 当拥塞是间歇和暂时的，不同时候出现在不同的
+link
+上时，Parsimon更准确；当拥塞跨越给定路径的多个边缘和核心链路时，准确性较低。导致高估
+long flow end-to-end latency。</li>
+<li>Clustering: 由于在 simulation 中使用了 clustering，引入了 actual
+link delay distribution 与 representative link delay distribution
+之间的误差。</li>
+<li>Sampling: Aggregation 时，是从 link-level daley distribution 中
+sample 一个点，而非对整个 delay 做 convolution。</li>
+</ol>
+<h3
+id="how-would-you-utilize-machine-learning-algorithms-to-make-flow-level-network-simulation-faster-and-more-precise">1.3.
+How would you utilize machine learning algorithms to make flow-level
+network simulation faster and more precise?</h3>
+<ol type="1">
+<li>在处理 link-level distribution 时，运用 machine learning
+algorithm(maybe mlp)，为 每个 link train 出一个以 workflow information
+为输入，delay 为输出的函数。当针对给定 workflow 做 aggregation
+时，使用这个函数来得到该 workflow 在对应 link 的 delay。</li>
+<li>改进 clustering 算法，使用诸如 K-means 的算法。</li>
+</ol>
+<h2 id="task-2-math-formulation">Task #2 Math formulation:</h2>
+<blockquote>
+<p>In section 3, the paper shows how Parsimon decomposes the network
+simulation into a series of link-level simulations, and how it
+aggregates the result, please formulate this process. (You can summarize
+the fast link-level simulation algorithm in section 4.1 as a function
+without further explanation. You are also allowed to ignore some of the
+technique details in your formulation)</p>
+</blockquote>
+<p><span class="math inline">\(\text{Given network topology as
+undirected graph }G=(V,E).\)</span></p>
+<p><span class="math inline">\(\text{Given workflow routes
+}WF.\)</span></p>
+<h3 id="generating-link-level-workloads">2.1. Generating Link-Level
+Workloads</h3>
+<p><span class="math inline">\(\forall link \in
+E,(u,v)=link.nodes,WL_{&lt;u,v&gt;}=\{wf|wf \in WF \wedge (\exists
+i&lt;j\text{, s.t. }wf.nodes[i]=u\wedge wf.nodes[j]=v)\}\)</span> <span
+class="math inline">\(WL_{&lt;v,u&gt;}=\{wf|wf \in WF \wedge (\exists
+i&gt;j\text{, s.t. }wf.nodes[i]=u\wedge wf.nodes[j]=v)\}\)</span></p>
+<h3 id="generating-link-level-topologies">2.2. Generating Link-Level
+Topologies</h3>
+<p><span class="math inline">\(\forall link\in E,
+(u,v)=link.nodes\)</span></p>
+<p><span class="math inline">\(\text{The link-level toplogy
+}LinkTopo_{&lt;u,v&gt;}=(V_{&lt;u,v&gt;},E_{&lt;u,v&gt;}).\)</span></p>
+<p>Suppose the traffic through the link <span
+class="math inline">\(&lt;u,v&gt;\)</span> originates from sources <span
+class="math inline">\(S_{&lt;u,v&gt;}\)</span> and terminates in
+destinations <span class="math inline">\(T_{&lt;u,v&gt;}\)</span> .</p>
+<p><span class="math inline">\(\text{Let }S_{&lt;u,v&gt;}:=\{wf.begin|
+wf \in WL_{&lt;u,v&gt;}\},wf.begin=wf[0].\)</span></p>
+<p><span class="math inline">\(\text{Let }T_{&lt;u,v&gt;}:=\{wf.end|wf
+\in WL_{&lt;u,v&gt;}\},wf.end=wf[wf.length-1].\)</span></p>
+<p><span class="math inline">\(\text{If }u.type=host\wedge
+v.type=switch,V_{&lt;u,v&gt;}=\{u,v\}\cup
+T_{&lt;u,v&gt;},E_{&lt;u,v&gt;}=\{newLink(u,v,mainlink)\} \cup
+\{newLink(v,h,downstream)|h \in T_{&lt;u,v&gt;}\}\text{, function
+newLink generates a new link object.}\)</span></p>
+<p><span class="math inline">\(\text{If }u.type=switch\wedge
+v.type=switch,V_{&lt;u,v&gt;}=\{u,v\}\cup T_{&lt;u,v&gt;}\cup
+S_{&lt;u,v&gt;},E_{&lt;u,v&gt;}=\{newLink(u,v,mainlink)\} \cup
+\{newLink(v,h,downstream)|h \in T_{&lt;u,v&gt;}\}\cup \{
+newLink(h,u,upstream)|h\in S_{&lt;u,v&gt;} \}.\)</span></p>
+<p><span class="math inline">\(\text{If }u.type=switch\wedge
+v.type=host,V_{&lt;u,v&gt;}=\{u,v\}\cup
+S_{&lt;u,v&gt;},E_{&lt;u,v&gt;}=\{newLink(u,v,ismainlink)\} \cup
+\{newLink(h,u,upstream)|h \in S_{&lt;u,v&gt;}\}.\)</span></p>
+<p><span class="math inline">\(LinkTopo_{&lt;v,u&gt;} \text{ would be
+genareted by the same way above.}\)</span></p>
+<h4 id="modeling-round-trip-delay">2.2.1. Modeling Round-Trip Delay</h4>
+<p><span class="math inline">\(\forall link \in
+E_{&lt;u,v&gt;}.\)</span></p>
+<p><span class="math inline">\(\text{Then the link has the only
+correspond workflow }wf\text{, s.t. }wf\in WL_{&lt;u,v&gt;}\wedge
+(\exists i&lt;j, wf.nodes[i]=u \wedge wf.nodes[j]=v).\)</span></p>
+<p><span class="math inline">\(\text{Therefore we could got the latency
+of the link
+}link.latency=\sum_{k=i}^{j-1}getLink(wf.nodes[k],wf.nodes[k+1]).latency.\)</span></p>
+<p><span class="math inline">\(\text{Let }getLink(u,v):=e \text{ if
+}e\in E \wedge e.nodes=(u,v).\)</span></p>
+<h4 id="selecting-link-bandwidths">2.2.2. Selecting Link Bandwidths</h4>
+<p><span class="math inline">\(\text{We should increase the bandwidth of
+downstream links.}\)</span></p>
+<p><span class="math inline">\(\forall link \in
+E_{&lt;u,v&gt;}.\)</span></p>
+<p><span class="math inline">\(\text{If }link.type=downstream\text{,
+then }link.bandwidth=addBandwidth(link)\text{, the function addBandwidth
+would increase the bandwidth of the link.}\)</span></p>
+<h4 id="correcting-for-ack-traffic">2.2.3. Correcting for ACK
+Traffic</h4>
+<p>This part is too detailed, so I omitted it.</p>
+<h3 id="post-processing-link-level-results">2.3. Post-Processing
+Link-Level Results</h3>
+<p><span class="math inline">\(\forall link \in
+E,(u,v)=link.nodes.\)</span></p>
+<p><span class="math inline">\(\forall wf \in
+WL_{&lt;u,v&gt;}.\)</span></p>
+<p><span class="math inline">\(\text{We generate the FCT of the workflow
+in the link, }
+FCT_{&lt;u,v&gt;,wf}:=Simulate(LinkTopo_{&lt;u,v&gt;},wf).\)</span></p>
+<p><span class="math inline">\(\text{Let ideal FCT of the link for the
+workflow
+}IdealFCT_{&lt;u,v&gt;,wf}:=link.latency+wf.size/link.bandwidth.\)</span></p>
+<p><span class="math inline">\(\text{Let latency of the link for the
+workflow
+}Delay_{&lt;u,v&gt;,wf}:=FCT_{&lt;u,v&gt;,wf}-IdealFCT_{&lt;u,v&gt;,wf}\)</span>.</p>
+<h4 id="packet-normalized-delay">2.3.1. Packet-Normalized Delay</h4>
+<p><span class="math inline">\(\text{Let packet-normalized delay
+}NormDelay_{&lt;u,v&gt;,wf}:=Delay_{&lt;u,v&gt;,wf}/wf.packetsize.\)</span></p>
+<h4 id="bucketing-distributions">2.3.2. Bucketing Distributions</h4>
+<p><span class="math inline">\(\text{Let set of packet-normalized delay
+for the link of each workflow
+}NormDelay_{&lt;u,v&gt;}:=\{NormDelay_{&lt;u,v&gt;,wf}|wf \in
+WL_{&lt;u,v&gt;}\}.\)</span></p>
+<p><span class="math inline">\(\text{Given hyper-parameters
+x,B}\)</span>.</p>
+<p>For each bucket <span class="math inline">\(b\)</span>, let <span
+class="math inline">\(maxf_b\)</span> and <span
+class="math inline">\(minf_b\)</span> be the maximum and minimum flow
+sizes associated with <span class="math inline">\(b\)</span>,
+respectively, and let <span class="math inline">\(n_b\)</span> be the
+number of elements in <span class="math inline">\(b\)</span>. Each
+bucket <span class="math inline">\(b\)</span> apart from the last one is
+locally subject to two constraints:</p>
+<p><span class="math display">\[n_b \ge B \text{ and } maxf_b \ge
+x*minf_b\]</span></p>
+<p>The algorithm to generate buckets and bucketing distribution:</p>
+<figure class="highlight py"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">global</span> B,x</span><br><span class="line"><span class="keyword">def</span> <span class="title function_">GenerateBuckets</span>(<span class="params">NormDelay</span>):</span><br><span class="line">    BD=[]</span><br><span class="line">    NormDelay.sort(by=wf_size) <span class="comment"># sorted by the flow size, not packet size</span></span><br><span class="line">    nb=<span class="number">0</span></span><br><span class="line">    maxfb=INT_MIN</span><br><span class="line">    minfb=INT_MAX</span><br><span class="line">    bucket=[]</span><br><span class="line">    <span class="keyword">for</span> delay <span class="keyword">in</span> NormDelay:</span><br><span class="line">        bucket.append(delay)</span><br><span class="line">        maxfb=<span class="built_in">max</span>(delay,maxfb)</span><br><span class="line">        minfb=<span class="built_in">min</span>(delay,minfb)</span><br><span class="line">        nb=nb+<span class="number">1</span></span><br><span class="line">        <span class="keyword">if</span> nb&gt;=B <span class="keyword">and</span> maxfb&gt;=x*minfb:</span><br><span class="line">            BD.append(copy.deepcopy(bucket))</span><br><span class="line">            bucket=[]</span><br><span class="line">            nb=<span class="number">0</span></span><br><span class="line">            maxfb=INT_MIN</span><br><span class="line">            minfb=INT_MAX</span><br><span class="line">    <span class="keyword">return</span> BD</span><br></pre></td></tr></table></figure>
+<p><span class="math inline">\(\text{Then we get the bucketing
+distribution of packet-normalized delay for the link
+}BD_{&lt;u,v&gt;}:=\{Bucket_{&lt;u,v&gt;,i}\}=GenerateBuckets(NormDelay_{&lt;u,v&gt;}).\)</span></p>
+<h3 id="aggregating-link-level-estimates">2.4. Aggregating Link-Level
+Estimates</h3>
+<p><span class="math inline">\(\text{Given }size,S,D \text{ as size,
+source and destination, then Parsimon compute the path from source to
+destination }Path=computePath(size,S,D,G).\)</span></p>
+<p><span class="math inline">\(\forall i, \vec{v_i}=&lt;u_i,v_i&gt;
+=Path[i].\)</span></p>
+<p><span class="math inline">\(\text{By querying the bucketing
+distribution by } size\text{, we obtain }\)</span></p>
+<p><span class="math inline">\(Bucket_i\in BD_{&lt;u_i,v_i&gt;}\text{,
+s.t. }size\ge min(BD_{&lt;u_i,v_i&gt;}) \wedge size\le
+max(BD_{&lt;u_i,v_i&gt;}).\)</span></p>
+<p><span class="math inline">\(\text{Then randomly sample a point from
+the bucket }D_i^* \stackrel{}{\leftarrow} Bucket_i.\)</span></p>
+<p><span class="math inline">\(\text{The end-to-end absolute delay } D
+\text{ is computed as }D=P\sum_{i}D_i^*\text{, where } P \text{ is the
+input flow size in packets.}\)</span></p>
+<h2 id="task-3-programming">Task #3 Programming:</h2>
+<blockquote>
+<p>Can you implement and test Algorithm 1 with a sample network? You may
+also refer to Appendix D for some details.</p>
+</blockquote>
+<p>Please refer to the test code <a
+href="./algorithm.ipynb">algorithm.ipynb</a> and the source code <a
+href="./clustering/">clustering</a>.</p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Network/" rel="tag"># Network</a>
+              <a href="/tags/Network-Simulation/" rel="tag"># Network Simulation</a>
+          </div>
+
+        
+  <div class="social-like a2a_kit a2a_kit_size_32 a2a_default_style">
+    <a class="a2a_dd" target="_blank" rel="noopener" href="https://www.addtoany.com/share"></a>
+      <a class="a2a_button_facebook"></a>
+      <a class="a2a_button_twitter"></a>
+  </div>
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2024/05/15/MuCache/" rel="prev" title="MuCache">
+                  <i class="fa fa-angle-left"></i> MuCache
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2024/05/15/CrystalNet/" rel="next" title="CrystalNet">
+                  CrystalNet <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    
+  
+  <div class="comments giscus-container">
+  </div>
+  
+  
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2024</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">NovaPigeon</span>
+  </div>
+<div class="busuanzi-count">
+    <span class="post-meta-item" id="busuanzi_container_site_uv">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+       本站访客数：  <span id="busuanzi_value_site_uv"></span> 人次
+      </span>
+    </span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        本站总访问量： <span id="busuanzi_value_site_pv"></span> 次
+      </span>
+    </span>
+</div>
+  <div class="powered-by">由 <span class="exturl" data-url="aHR0cHM6Ly9oZXhvLmlv">Hexo</span> & <span class="exturl" data-url="aHR0cHM6Ly90aGVtZS1uZXh0LmpzLm9yZw==">NexT.Gemini</span> 强力驱动
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="返回顶部">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+  <span class="exturl github-corner" data-url="aHR0cHM6Ly9naXRodWIuY29tL05vdmFQaWdlb24=" title="在 GitHub 上关注我" aria-label="在 GitHub 上关注我"><svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></span>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pangu/4.0.7/pangu.min.js" integrity="sha256-j+yj56cdEY2CwkVtGyz18fNybFGpMGJ8JxG3GSyO2+I=" crossorigin="anonymous"></script>
+<script src="/js/comments.js"></script><script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/sidebar.js"></script><script src="/js/next-boot.js"></script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/hexo-generator-searchdb/1.4.1/search.js" integrity="sha256-1kfA5uHPf65M5cphT2dvymhkuyHPQp5A53EGZOnOLmc=" crossorigin="anonymous"></script>
+<script src="/js/third-party/search/local-search.js"></script>
+
+  <script class="next-config" data-name="pdf" type="application/json">{"object_url":{"url":"https://cdnjs.cloudflare.com/ajax/libs/pdfobject/2.3.0/pdfobject.min.js","integrity":"sha256-JJZNsid68vnh3/zyj0lY9BN5ynxVX/12XgOa1TlaYN0="},"url":"/lib/pdf/web/viewer.html"}</script>
+  <script src="/js/third-party/tags/pdf.js"></script>
+
+  <script class="next-config" data-name="mermaid" type="application/json">{"enable":true,"theme":{"light":"default","dark":"dark"},"js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.0/mermaid.min.js","integrity":"sha256-stuqcu2FrjYCXDOytWFA5SoUE/r3nkp6gTglzNSlavU="}}</script>
+  <script src="/js/third-party/tags/mermaid.js"></script>
+
+  <script class="next-config" data-name="wavedrom" type="application/json">{"enable":true,"js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/wavedrom/3.5.0/wavedrom.min.js","integrity":"sha256-INLAoJc6quTNfiMWkGZniYO2cxE8mHpddnLow1m6RFs="}}</script>
+  <script class="next-config" data-name="wavedrom_skin" type="application/json">{"enable":true,"js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/wavedrom/3.5.0/skins/default.js","integrity":"sha256-fduc/Zszk5ezWws2uInY/ALWVmIrmV6VTgXbsYSReFI="}}</script>
+  <script src="/js/third-party/tags/wavedrom.js"></script>
+
+
+
+  <script src="/js/third-party/addtoany.js"></script>
+
+  
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+
+
+
+  
+
+  <script class="next-config" data-name="enableMath" type="application/json">true</script><script class="next-config" data-name="mathjax" type="application/json">{"enable":true,"tags":"none","single_dollars":true,"js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js","integrity":"sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI="}}</script>
+<script src="/js/third-party/math/mathjax.js"></script>
+
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/quicklink/2.3.0/quicklink.umd.js" integrity="sha256-yvJQOINiH9fWemHn0vCA5lsHWJaHs6/ZmO+1Ft04SvM=" crossorigin="anonymous"></script>
+  <script class="next-config" data-name="quicklink" type="application/json">{"enable":true,"home":true,"archive":true,"delay":true,"timeout":3000,"priority":true,"url":"https://novapigeon.github.io/2024/05/15/Parsimon/"}</script>
+  <script src="/js/third-party/quicklink.js"></script>
+<script class="next-config" data-name="giscus" type="application/json">{"enable":true,"repo":"NovaPigeon/NovaPigeon.github.io","repo_id":"R_kgDOL7zRSg","category":"Announcements","category_id":"DIC_kwDOL7zRSs4CfX-L","mapping":"pathname","strict":0,"reactions_enabled":1,"emit_metadata":1,"theme":"light","lang":"zh-CN","crossorigin":"anonymous","input_position":"bottom","loading":"lazy"}</script>
+
+<script>
+document.addEventListener('page:loaded', () => {
+  if (!CONFIG.page.comments) return;
+
+  NexT.utils.loadComments('.giscus-container')
+    .then(() => NexT.utils.getScript('https://giscus.app/client.js', {
+      attributes: {
+        async                   : true,
+        crossOrigin             : 'anonymous',
+        'data-repo'             : CONFIG.giscus.repo,
+        'data-repo-id'          : CONFIG.giscus.repo_id,
+        'data-category'         : CONFIG.giscus.category,
+        'data-category-id'      : CONFIG.giscus.category_id,
+        'data-mapping'          : CONFIG.giscus.mapping,
+        'data-strict'           : CONFIG.giscus.strict,
+        'data-reactions-enabled': CONFIG.giscus.reactions_enabled,
+        'data-emit-metadata'    : CONFIG.giscus.emit_metadata,
+        'data-theme'            : CONFIG.giscus.theme,
+        'data-lang'             : CONFIG.giscus.lang,
+        'data-input-position'   : CONFIG.giscus.input_position,
+        'data-loading'          : CONFIG.giscus.loading
+      },
+      parentNode: document.querySelector('.giscus-container')
+    }));
+});
+</script>
+
+</body>
+</html>

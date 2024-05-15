@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha256-XOqroi11tY4EFQMR9ZYwZWKj5ZXiftSx36RRuC3anlA=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"novapigeon.github.io","root":"/","images":"/images","scheme":"Gemini","darkmode":false,"version":"8.20.0","exturl":true,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"copycode":{"enable":true,"style":"mac"},"fold":{"enable":true,"height":500},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":true,"comments":{"style":"tabs","active":"giscus","storage":true,"lazyload":true,"nav":null,"activeClass":"giscus"},"stickytabs":true,"motion":{"enable":true,"async":false,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"搜索...","empty":"没有找到任何搜索结果：${query}","hits_time":"找到 ${hits} 个搜索结果（用时 ${time} 毫秒）","hits":"找到 ${hits} 个搜索结果"},"path":"/search.xml","localsearch":{"enable":true,"trigger":"auto","top_n_per_article":-1,"unescape":true,"preload":true}}</script><script src="/js/config.js"></script>
+
+    <meta name="description" content="Faithfully Emulating Large Production Networks.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="CrystalNet">
+<meta property="og:url" content="https://novapigeon.github.io/2024/05/15/CrystalNet/index.html">
+<meta property="og:site_name" content="NovaPigeon&#39;s Blog">
+<meta property="og:description" content="Faithfully Emulating Large Production Networks.">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2024-05-15T10:17:51.000Z">
+<meta property="article:modified_time" content="2024-05-15T11:17:47.225Z">
+<meta property="article:author" content="NovaPigeon">
+<meta property="article:tag" content="Network">
+<meta property="article:tag" content="Network Emulating">
+<meta name="twitter:card" content="summary">
+
+
+<link rel="canonical" href="https://novapigeon.github.io/2024/05/15/CrystalNet/">
+
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh-CN","comments":true,"permalink":"https://novapigeon.github.io/2024/05/15/CrystalNet/","path":"2024/05/15/CrystalNet/","title":"CrystalNet"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>CrystalNet | NovaPigeon's Blog</title>
+  
+
+
+
+
+
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">NovaPigeon's Blog</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">代大匠斫者</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="搜索" role="button">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a></li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup"><div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off" maxlength="80"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close" role="button">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div class="search-result-container no-result">
+  <div class="search-result-icon">
+    <i class="fa fa-spinner fa-pulse fa-5x"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#faithfully-emulating-large-production-networks"><span class="nav-number">1.</span> <span class="nav-text">Faithfully
+Emulating Large Production Networks</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#task-1-reading-writing"><span class="nav-number">1.1.</span> <span class="nav-text">Task #1: Reading &amp; Writing: </span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#what-problem-is-this-paper-solving"><span class="nav-number">1.1.1.</span> <span class="nav-text">1. What problem is this
+paper solving?</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#what-is-the-key-idea"><span class="nav-number">1.1.2.</span> <span class="nav-text">2. What is the key idea?</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#any-idea-to-improve-the-proposed-solution"><span class="nav-number">1.1.3.</span> <span class="nav-text">3. Any idea to
+improve the proposed solution?</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#ask-three-questions-you-dont-understand-about-the-paper."><span class="nav-number">1.1.4.</span> <span class="nav-text">4. Ask
+three questions you don’t understand about the paper.</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#task-2-math-formulation"><span class="nav-number">1.2.</span> <span class="nav-text">Task #2: Math formulation: </span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#could-you-mathematically-formulate-the-problem-discussed-in-sec-5"><span class="nav-number">1.2.1.</span> <span class="nav-text">1.
+Could you mathematically formulate the problem discussed in Sec 5?</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#given-your-problem-formulation-and-notations-could-you-formally-express-the-lemma-and-propositions-in-sec-5"><span class="nav-number">1.2.2.</span> <span class="nav-text">2.
+Given your problem formulation and notations, could you formally express
+the Lemma and Propositions in Sec 5?</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#bgp"><span class="nav-number">1.2.2.1.</span> <span class="nav-text">BGP</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#ospf"><span class="nav-number">1.2.2.2.</span> <span class="nav-text">OSPF</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#task-3-programming-could-you-implement-and-test-algorithm-1-with-a-sample-network"><span class="nav-number">1.3.</span> <span class="nav-text">Task
+#3: Programming: Could you implement and test Algorithm 1 with a sample
+network?</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#generate-multi-root-tree"><span class="nav-number">1.3.1.</span> <span class="nav-text">Generate multi-root tree</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#generate-must-have-device"><span class="nav-number">1.3.2.</span> <span class="nav-text">Generate must-have device</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#search-static-safe-boundary-of-datacenter"><span class="nav-number">1.3.3.</span> <span class="nav-text">Search static safe
+boundary of datacenter</span></a></li></ol></li></ol></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="NovaPigeon"
+      src="/images/avator.jpg">
+  <p class="site-author-name" itemprop="name">NovaPigeon</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">4</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">1</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">7</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://novapigeon.github.io/2024/05/15/CrystalNet/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avator.jpg">
+      <meta itemprop="name" content="NovaPigeon">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="NovaPigeon's Blog">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="CrystalNet | NovaPigeon's Blog">
+      <meta itemprop="description" content="Faithfully Emulating Large Production Networks.">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          CrystalNet
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+      
+
+      <time title="创建时间：2024-05-15 18:17:51 / 修改时间：19:17:47" itemprop="dateCreated datePublished" datetime="2024-05-15T18:17:51+08:00">2024-05-15</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">分类于</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Paper-Reading/" itemprop="url" rel="index"><span itemprop="name">Paper Reading</span></a>
+        </span>
+    </span>
+
+  
+    <span class="post-meta-item" title="阅读次数" id="busuanzi_container_page_pv">
+      <span class="post-meta-item-icon">
+        <i class="far fa-eye"></i>
+      </span>
+      <span class="post-meta-item-text">阅读次数：</span>
+      <span id="busuanzi_value_page_pv"></span>
+    </span>
+</div>
+
+            <div class="post-description">Faithfully Emulating Large Production Networks.</div>
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><h1 id="faithfully-emulating-large-production-networks">Faithfully
+Emulating Large Production Networks</h1>
+<p>Please read the
+https://www.microsoft.com/en-us/research/wp-content/uploads/2017/10/p599-liu.pdf
+(you can focus on S1-S5), and try your best to finish the following
+three tasks:</p>
+<h2 id="task-1-reading-writing">Task #1: Reading &amp; Writing: </h2>
+<h3 id="what-problem-is-this-paper-solving">1. What problem is this
+paper solving?</h3>
+<p>对于云服务和 online service
+的大型网络而言，可靠地运行是一项挑战。这些网络往往包含数以万计的异构的设备，且一直在动态变化中。这使得哪怕是一些小问题，诸如硬件故障，软件bug，配置错误和人为的小错误（如输错命令），也会导致严重的后果，譬如网络中断。SLA
+的不可靠继而导致用户的流失，这对服务提供商来说是灾难性的。</p>
+<p>一个可行的思路是，在高保真的网络仿真器中验证所有网络操作，然后再在生产网络中执行。以往的技术并没有办法实现这种思路。</p>
+<ol type="1">
+<li>Small hardware testbeds，如 Cloudlab/
+Emulab，只能对新设备进行单元/压力测试，但无法模拟复杂网络拓扑结构中的相互关系。</li>
+<li>Network verification tools，例如
+batfish，是根据设备配置和拓扑，来模拟理想状态下的路由的。但它无法揭示设备固件
+bug
+和诸如不同供应商对同一路由协议的实现差异带来的问题，且无法防止人为错误（因为其工作流程与生产网络截然不同，无法方便地起到预演的作用）。</li>
+<li>Small-scale network emulator，如
+MiniNet/GNS，拥有许多缺陷（如不支持异构的设备固件，不识别安全的仿真边界），且无法扩展到如大型云网络的规模。</li>
+</ol>
+<p>因此，本文提出了 highly-scalable/high-fidelity network emulator:
+CrystalNet.</p>
+<h3 id="what-is-the-key-idea">2. What is the key idea?</h3>
+<p>CrystalNet 首先需要建立物理网络的模拟。</p>
+<p>对于异构的网络设备，CrystalNet 将设备运行在 Docker
+容器中，部署在云上的 VM 里。另外，实现一个 PhyNet 容器层，包含 virtual
+interface，设备容器与 PhyNet 连接，而网络拓扑通过 PhyNet
+之间的互相连接实现。因此不用针对每个设备软件 image 的黑箱一一实现
+API，而只要实现统一的 API；设备软件像与物理 interface 交互一样与 PhyNet
+中的 virtual interface 交互。</p>
+<p>对于只提供 VM image 而不提供容器 image 的设备，CrystalNet 将 VM image
+等打包到一个新的容器 image 中，再在云 VM 中运行该
+image（云需要支持嵌套虚拟机）</p>
+<p>CrystalNet 也支持真实硬件的耦合，硬件交换机与 PhyNet 相连（经过
+fanout 交换机），就可以与其他仿真设备交互。</p>
+<p>对于 CrystalNet
+的数据平面虚拟链路，仿真设备将其视为以太网链路。且使用 VXLAN
+协议，模拟以太网链路(L2-L3，添加 UDP 报头，可连接 IP
+网络)，使数据在真实网络中传播，而这对仿真设备透明。</p>
+<p>对于 CrystalNet 的控制平面虚拟链路，CrystalNet 部署了一个 Linux
+Jumpbox，与所有仿真设备相连。通过
+Jumpbox，操作者可以像在生产环境中一样操作所有仿真设备。</p>
+<p>任何仿真网络都需要有边界，一则没有那么多的资源，二则无法获知控制范围之外的网络设备的信息。CrystalNet
+定义了安全静态边界的概念(safe static
+boundaries)，指当内部的仿真设备发生各种变动时，外部网络可以视作始终保持静态。模拟外部网络时，CrystalNet只模拟与内部设备直接相连的设备，称为
+speaker device，这些设备是静态的，只通过基本的活动（如
+ARP）与边界设备保持连接，且可以发送任何路由信息。CrystalNet 针对
+BGP/OSFP/SDN，提出了安全静态边界成立的一些充分条件。并对于 Clos-like
+&amp; BGP 的数据中心网络(其拓扑可以视作 multi-root
+tree)提出了一种搜索安全静态边界的算法。经过实验，计算安全静态边界降低了
+90% 以上的成本。</p>
+<p>通过以上设计，CrystalNet 实现了以下目标： 1. 可以运行在公有云上，易于
+scale out（container） 2. 可以透明地模拟物理网络（PhyNet, VXLAN） 3.
+可以透明地模拟外部网络（安全静态边界，speaker device）</p>
+<h3 id="any-idea-to-improve-the-proposed-solution">3. Any idea to
+improve the proposed solution?</h3>
+<ol type="1">
+<li>当前 CrystalNet 的用法还是一种网络的验证工具，那是否有可能将
+CrystalNet 作为生产环境与实际操作之间的缓冲层？CrystalNet
+与生产网络同构，每当执行一个操作，首先自动化地在 CrystalNet
+上执行，然后经过一段时间的验证后，再从 CrystalNet 导向实际生产网络。另外
+CrystalNet
+应当对操作者透明，除了报错时，操作者应当意识不到他们操作的究竟是
+CrystalNet 还是真实网络。</li>
+<li>模拟数据平面的内容，诸如丢包率，延迟，带宽。</li>
+<li>支持除 Ethernet
+网卡外的其他设备和除以太网之外的其他链路层协议。</li>
+<li>改进仿真设备在云上的部署算法，考虑延迟等度量的同构性。 (2-4
+详见问4中所述)</li>
+</ol>
+<h3 id="ask-three-questions-you-dont-understand-about-the-paper.">4. Ask
+three questions you don’t understand about the paper.</h3>
+<ol type="1">
+<li>此处说到的可以扩展到其他设备，包括其他类型的硬件接口吗？譬如
+InfiniBand 版的 RDMA 实现就重构了链路层，但前文中提到 CrystalNet 只支持
+Ethernet 网卡。其他的譬如各式 SmartNIC，DPU
+之类的可以与之兼容吗？（这似乎不只是软件层面的问题，还有硬件的异构）CrystalNet
+可以支持不同的链路层协议吗？</li>
+<li>数据平面的丢包率，延迟，带宽等为什么难以模拟呢？如 Linux 提供的
+tc-netem，就可以模拟丢包率，延迟，带宽等等。</li>
+<li>在公有云上部署 VMs，这些 VMs
+的实际物理位置是不可知的（甚至会跨越多个公有云），这会导致实际上被部署在一起、相互之间延迟极低的设备，在云上可能相距极远、延迟极高。（云上容器的实际拓扑与生产环境中设备的拓扑不相符）进一步导致诸如
+OSPF 等对 time cost
+敏感的路由协议在更新路由表、计算路由路径时与实际可能发生的情况不相符。如何处理这种情况，直接写死路由吗？或许可以有部署算法的改进可能？</li>
+</ol>
+<h2 id="task-2-math-formulation">Task #2: Math formulation: </h2>
+<h3
+id="could-you-mathematically-formulate-the-problem-discussed-in-sec-5">1.
+Could you mathematically formulate the problem discussed in Sec 5?</h3>
+<p>Define the global network topology as an undirected graph <span
+class="math inline">\(G=(V,L)\)</span>, where <span
+class="math inline">\(V\)</span> is the set of device nodes, and <span
+class="math inline">\(L\)</span> represents the links between devices
+(also the undirected edges in the graph).</p>
+<p>Define emulated devices <span class="math inline">\(D\)</span>,
+external devices <span class="math inline">\(E\)</span>, where <span
+class="math inline">\(G=D \cup E \wedge D\cap E=\emptyset\)</span>.</p>
+<p>Define boundary devices <span class="math inline">\(B :=\{u|(u\in D)
+\wedge (\exists v\in E,s.t. \space (u,v)\in L)\}\)</span>, which are
+emulated devices directly connected to external devices.</p>
+<p>Define internal devices <span class="math inline">\(I:=\{u|(u\in
+D)\wedge(\forall v\in E, (u,v)\notin L)\}\)</span>, which are emulated
+devices whose neighbors are all emulated devices. Thus, <span
+class="math inline">\(B\cup I=D \wedge B\cap I=\emptyset\)</span>.</p>
+<p>Define speaker devices (speaker device) <span
+class="math inline">\(S:=\{u|(u\in E)\wedge(\exists v\in D,s.t. (u,v)\in
+L)\}\)</span>, which are external devices directly connected to emulated
+devices.</p>
+<p>Define the boundary <span class="math inline">\(B\)</span> as a safe
+static boundary: all behaviors of emulated devices are consistent with
+the real network. Since CrystalNet implements speaker devices as static,
+this statement is equivalent to the fact that the behavior of speaker
+devices in the real network cannot affect devices inside the boundary
+(including boundary devices).</p>
+<p>Define an impact function <span class="math inline">\(f: V\times
+P(V\times V) \to P(V)\)</span>, where <span
+class="math inline">\(P(V)\)</span> is the power set of <span
+class="math inline">\(V\)</span>. <span class="math inline">\(\forall
+u\in V\)</span>, <span class="math inline">\(f(u, R)=Next_{u,R}\subseteq
+V\)</span>, and for all <span class="math inline">\(v\in
+Next_{u,R}\)</span>, <span class="math inline">\((u,v)\in L\)</span>.
+This means that if <span class="math inline">\(u\)</span> wants to send
+information, this information can propagate to devices in <span
+class="math inline">\(Next_{u,R}\)</span>, and these devices will
+continue to apply the function <span class="math inline">\(f(v,R\cup \{
+&lt;u,v&gt;\})\)</span> to send information. Here, <span
+class="math inline">\(R\)</span> records the path that the information
+propagation has traversed.</p>
+<p>We apply the following algorithm to determine whether <span
+class="math inline">\(B\)</span> is a safe boundary.</p>
+<figure class="highlight py"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">global</span> V,L,D,E,f <span class="comment"># given</span></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">transmitt</span>(<span class="params">u,R</span>)-&gt;<span class="built_in">bool</span>:</span><br><span class="line">    Next_u_R=f(u,R)</span><br><span class="line">    <span class="keyword">for</span> v <span class="keyword">in</span> Next_u_R:</span><br><span class="line">        <span class="keyword">if</span> u <span class="keyword">in</span> E <span class="keyword">and</span> v <span class="keyword">in</span> D:</span><br><span class="line">            <span class="keyword">return</span> <span class="literal">False</span></span><br><span class="line">    <span class="keyword">if</span> transmitt(f,v,R.append(&lt;u,v&gt;))==<span class="literal">False</span>:</span><br><span class="line">            <span class="keyword">return</span> <span class="literal">False</span></span><br><span class="line">    <span class="keyword">return</span> <span class="literal">True</span></span><br><span class="line">    </span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">isSafeStaticBoundary</span>()-&gt;<span class="built_in">bool</span>:</span><br><span class="line">    <span class="keyword">for</span> begin <span class="keyword">in</span> D:</span><br><span class="line">        <span class="keyword">if</span> transmitt(begin,[])==<span class="literal">False</span>:</span><br><span class="line">            <span class="keyword">return</span> <span class="literal">False</span></span><br><span class="line">    <span class="keyword">return</span> <span class="literal">True</span></span><br></pre></td></tr></table></figure>
+<p>This problem may not be Turing-decidable because it may produce
+loops, and <span class="math inline">\(f\)</span> is a function that may
+behave differently based on past path information, making it impossible
+to determine when duplicates will occur. Therefore, the algorithm may
+not stop. Of course, if a deterministic <span
+class="math inline">\(f\)</span> is provided, the result can be
+determined through constraints.</p>
+<h3
+id="given-your-problem-formulation-and-notations-could-you-formally-express-the-lemma-and-propositions-in-sec-5">2.
+Given your problem formulation and notations, could you formally express
+the Lemma and Propositions in Sec 5?</h3>
+<h4 id="bgp">BGP</h4>
+<p>For networks using BGP protocol, we need to add AS information. Let
+<span class="math inline">\(ASes:= \{AS_{n_i}\}\)</span>, <span
+class="math inline">\(ASN=\{n_i\}\)</span>, where <span
+class="math inline">\(\cup_{i}AS_{n_i}=V\)</span>, and <span
+class="math inline">\(\cap_{i}AS_{n_i}=\emptyset\)</span>.</p>
+<p>We can simplify <span class="math inline">\(R\)</span> as an ordered
+set of nodes in the path.</p>
+<p>Define <span class="math display">\[inSameAS: V\times V\rightarrow
+\{true,false\}\]</span></p>
+<p><span class="math display">\[inSameAS(u,v)= \exists i,s.t.\space u\in
+AS_{n_i} \wedge v\in AS_{n_i}\]</span></p>
+<p>The propagation function is given by: <span
+class="math display">\[f(u,R)=Next_{u,R}=\{v|((u,v)\in L)\wedge
+(\nexists w \in R,s.t. \space inSameAS(w,v))\wedge
+(!inSameAS(u,v))\}\]</span></p>
+<p>Subsequently, <span class="math display">\[\forall v \in Next_{u,R}
+\text{, call } {f(v,R\cup \{ u\})}\]</span></p>
+<p><span class="math inline">\(RV\)</span> records the paths that appear
+in the propagation.</p>
+<p>The problem then transforms into the following algorithm:</p>
+<figure class="highlight py"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">global</span> V,L,D,E,ASes <span class="comment"># given</span></span><br><span class="line"></span><br><span class="line">RV=[] <span class="comment"># route vectors</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">transmitt</span>(<span class="params">u,R</span>)-&gt;<span class="built_in">bool</span>:</span><br><span class="line">    Next_u_R=[]</span><br><span class="line">    RV.append(R.append(u))</span><br><span class="line">    <span class="keyword">for</span> v <span class="keyword">in</span> Neighbor(u):</span><br><span class="line">        flag=<span class="literal">False</span></span><br><span class="line">        <span class="keyword">if</span> inSameAS(u,v):</span><br><span class="line">            flag=true</span><br><span class="line">    <span class="keyword">for</span> w <span class="keyword">in</span> R:</span><br><span class="line">        <span class="keyword">if</span> inSameAS(v,w):</span><br><span class="line">            flag=<span class="literal">True</span></span><br><span class="line">            <span class="keyword">break</span></span><br><span class="line">        <span class="keyword">if</span> flag==<span class="literal">True</span></span><br><span class="line">            <span class="keyword">continue</span></span><br><span class="line">        <span class="keyword">if</span> u <span class="keyword">in</span> E <span class="keyword">and</span> v <span class="keyword">in</span> D:</span><br><span class="line">            <span class="keyword">return</span> <span class="literal">False</span></span><br><span class="line">        Next_u_R.append(v)</span><br><span class="line">    <span class="keyword">for</span> v <span class="keyword">in</span> Next_u_R:</span><br><span class="line">        <span class="keyword">if</span> transmitt(v,R.append(u))==<span class="literal">False</span>:</span><br><span class="line">            <span class="keyword">return</span> <span class="literal">False</span></span><br><span class="line">    <span class="keyword">return</span> <span class="literal">True</span></span><br><span class="line"></span><br><span class="line">    </span><br><span class="line"></span><br><span class="line"> <span class="keyword">def</span> <span class="title function_">isSafeStaticBoundary</span>()-&gt;<span class="built_in">bool</span>:</span><br><span class="line">    <span class="keyword">for</span> begin <span class="keyword">in</span> D:</span><br><span class="line">        <span class="keyword">if</span> transmitt(begin,[],V,L,D,E)==<span class="literal">False</span>:</span><br><span class="line">            <span class="keyword">return</span> <span class="literal">False</span></span><br><span class="line">    <span class="keyword">return</span> <span class="literal">True</span></span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<p><span class="math inline">\(\text{Lemma 5.1: A boundary is safe if
+and only if }\forall R \in RV, \nexists i\text{, s.t.}R[i] \in E \wedge
+R[i+1] \in D.\)</span></p>
+<p><span class="math inline">\(\text{Proposition 5.2: If }\exists
+i,\text{ s.t. }B \subseteq AS_{n_i} \wedge (\nexists u,v \in S , u\not
+={v}\text{, s.t. }inSameAS(u,v))\text{, the boundary is
+safe.}\)</span></p>
+<p><span class="math inline">\(\text{Proposition 5.3: If }\forall R \in
+RV, \nexists i&lt;j&lt;k\text{, s.t. }(R[i] \text{ and } R[k] \in B)
+\wedge (R[j] \in E)\text{ the boundary is safe.}\)</span></p>
+<h4 id="ospf">OSPF</h4>
+<p>Let <span class="math inline">\(S,B,L,D,E\)</span> all be time
+series.</p>
+<p>Let <span class="math inline">\(Links(S_{t_i},B_{t_i}):=\{(u,v)|(u,v)
+\in L_{t_i} \wedge u \in S_{t_i} \wedge v \in B_{t_i}\}\)</span></p>
+<p><span class="math inline">\(\text{Proposition 5.4: If }\forall i,
+Links(S_{t_i},B_{t_i})=Links(S_{t_0},B_{t_0}) \text{ and }DR,BDR \in
+D\text{, the boundary of the OSPF network is safe.}\)</span></p>
+<h2
+id="task-3-programming-could-you-implement-and-test-algorithm-1-with-a-sample-network">Task
+#3: Programming: Could you implement and test Algorithm 1 with a sample
+network?</h2>
+<p>Please refer to the file algorithm.ipynb. The search algorithm is
+implemented based on a multi-root tree.</p>
+<h3 id="generate-multi-root-tree">Generate multi-root tree</h3>
+<p>将 Clos-like 的数据中心网络拓扑结构看作 multi-root tree，随机生成 DAG
+G。</p>
+<figure class="highlight py"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> matplotlib.pyplot <span class="keyword">as</span> plt</span><br><span class="line"><span class="keyword">import</span> networkx <span class="keyword">as</span> nx</span><br><span class="line"><span class="keyword">import</span> random</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">generate_multi_root_tree</span>(<span class="params">num_roots:<span class="built_in">int</span>, depth:<span class="built_in">int</span></span>)-&gt;nx.classes.digraph.DiGraph:</span><br><span class="line">    G = nx.DiGraph()</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 添加根节点</span></span><br><span class="line">    roots = ([<span class="string">f&quot;root_<span class="subst">&#123;i&#125;</span>&quot;</span> <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(num_roots)])</span><br><span class="line">    options=&#123;<span class="string">&quot;depth&quot;</span>:<span class="number">0</span>&#125;</span><br><span class="line">    G.add_nodes_from(roots,**options)</span><br><span class="line">    upper_layer=roots</span><br><span class="line">    <span class="keyword">for</span> d <span class="keyword">in</span> <span class="built_in">range</span>(<span class="number">1</span>,depth+<span class="number">1</span>):</span><br><span class="line">        num_nodes=random.randint(<span class="number">3</span>,<span class="number">8</span>)</span><br><span class="line">        nodes = ([<span class="string">f&quot;node_<span class="subst">&#123;d&#125;</span>_<span class="subst">&#123;i&#125;</span>&quot;</span> <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(num_nodes)])</span><br><span class="line">        options=&#123;<span class="string">&quot;depth&quot;</span>:d&#125;</span><br><span class="line">        G.add_nodes_from(nodes,**options)</span><br><span class="line">        <span class="keyword">for</span> node <span class="keyword">in</span> nodes:</span><br><span class="line">            n_links=random.randint(<span class="number">0</span>,<span class="built_in">len</span>(upper_layer))</span><br><span class="line">            rand_parents=random.sample(upper_layer,n_links)</span><br><span class="line">            edge_list=[(node,parent) <span class="keyword">for</span> parent <span class="keyword">in</span> rand_parents]</span><br><span class="line">            G.add_edges_from(edge_list)</span><br><span class="line">        upper_layer=nodes</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> G</span><br><span class="line"></span><br><span class="line">G = generate_multi_root_tree(<span class="number">3</span>, <span class="number">5</span>)</span><br><span class="line">pos = nx.layout.multipartite_layout(G,subset_key=<span class="string">&#x27;depth&#x27;</span>,align=<span class="string">&quot;horizontal&quot;</span>)</span><br><span class="line">nx.draw(G, with_labels=<span class="literal">True</span>,pos=pos)</span><br></pre></td></tr></table></figure>
+<h3 id="generate-must-have-device">Generate must-have device</h3>
+<p>从 G 中按比率 p 随机 sample
+一些点，作为必须要仿真的设备。在图中用绿色标识。</p>
+<figure class="highlight py"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">genarate_must_have_device</span>(<span class="params">G:nx.classes.digraph.DiGraph,p=<span class="number">0.2</span></span>)-&gt;<span class="built_in">list</span>:</span><br><span class="line">    D=[]</span><br><span class="line">    <span class="keyword">for</span> node <span class="keyword">in</span> G.nodes():</span><br><span class="line">        r=random.randint(<span class="number">0</span>,<span class="number">100</span>)</span><br><span class="line">        <span class="keyword">if</span> r&lt;<span class="number">100</span>*p:</span><br><span class="line">            D.append(node)</span><br><span class="line">    <span class="keyword">return</span> D</span><br><span class="line"></span><br><span class="line">D=genarate_must_have_device(G)</span><br><span class="line">pos = nx.layout.multipartite_layout(G,subset_key=<span class="string">&#x27;depth&#x27;</span>,align=<span class="string">&quot;horizontal&quot;</span>)</span><br><span class="line">nx.draw(G, with_labels=<span class="literal">True</span>,pos=pos)</span><br><span class="line">nx.draw_networkx_nodes(G, pos, nodelist=D, node_color=<span class="string">&#x27;green&#x27;</span>)</span><br><span class="line">plt.show()</span><br></pre></td></tr></table></figure>
+<h3 id="search-static-safe-boundary-of-datacenter">Search static safe
+boundary of datacenter</h3>
+<p>搜索保证边界安全静态要仿真的所有设备，在图中用黄色标识。</p>
+<figure class="highlight py"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">find_safe_dc_boundary</span>(<span class="params">G:nx.classes.digraph.DiGraph,D:<span class="built_in">list</span></span>)-&gt;<span class="built_in">list</span>:</span><br><span class="line">    D_=<span class="built_in">set</span>()</span><br><span class="line">    D=<span class="built_in">set</span>(D)</span><br><span class="line">    <span class="keyword">while</span> <span class="built_in">len</span>(D)!=<span class="number">0</span>:</span><br><span class="line">        d=D.pop()</span><br><span class="line">        D_.add(d)</span><br><span class="line">        depth=G.nodes[d][<span class="string">&#x27;depth&#x27;</span>]</span><br><span class="line">        </span><br><span class="line">        <span class="keyword">if</span> depth==<span class="number">0</span>:</span><br><span class="line">            <span class="keyword">continue</span></span><br><span class="line">        upper_devs=<span class="built_in">list</span>(G.neighbors(d))</span><br><span class="line">        </span><br><span class="line">        <span class="keyword">for</span> ud <span class="keyword">in</span> upper_devs:</span><br><span class="line">            <span class="keyword">if</span> ud <span class="keyword">not</span> <span class="keyword">in</span> D.union(D_):</span><br><span class="line">                D.add(ud)</span><br><span class="line">    <span class="keyword">return</span> <span class="built_in">list</span>(D_)</span><br><span class="line"></span><br><span class="line">D_=find_safe_dc_boundary(G,D) </span><br><span class="line">pos = nx.layout.multipartite_layout(G,subset_key=<span class="string">&#x27;depth&#x27;</span>,align=<span class="string">&quot;horizontal&quot;</span>)</span><br><span class="line">nx.draw(G, with_labels=<span class="literal">True</span>,pos=pos)</span><br><span class="line">nx.draw_networkx_nodes(G, pos, nodelist=D_, node_color=<span class="string">&#x27;yellow&#x27;</span>)</span><br><span class="line">plt.show()</span><br></pre></td></tr></table></figure>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Network/" rel="tag"># Network</a>
+              <a href="/tags/Network-Emulating/" rel="tag"># Network Emulating</a>
+          </div>
+
+        
+  <div class="social-like a2a_kit a2a_kit_size_32 a2a_default_style">
+    <a class="a2a_dd" target="_blank" rel="noopener" href="https://www.addtoany.com/share"></a>
+      <a class="a2a_button_facebook"></a>
+      <a class="a2a_button_twitter"></a>
+  </div>
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2024/05/15/Parsimon/" rel="prev" title="Parsimon">
+                  <i class="fa fa-angle-left"></i> Parsimon
+                </a>
+            </div>
+            <div class="post-nav-item">
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    
+  
+  <div class="comments giscus-container">
+  </div>
+  
+  
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2024</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">NovaPigeon</span>
+  </div>
+<div class="busuanzi-count">
+    <span class="post-meta-item" id="busuanzi_container_site_uv">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+       本站访客数：  <span id="busuanzi_value_site_uv"></span> 人次
+      </span>
+    </span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        本站总访问量： <span id="busuanzi_value_site_pv"></span> 次
+      </span>
+    </span>
+</div>
+  <div class="powered-by">由 <span class="exturl" data-url="aHR0cHM6Ly9oZXhvLmlv">Hexo</span> & <span class="exturl" data-url="aHR0cHM6Ly90aGVtZS1uZXh0LmpzLm9yZw==">NexT.Gemini</span> 强力驱动
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="返回顶部">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+  <span class="exturl github-corner" data-url="aHR0cHM6Ly9naXRodWIuY29tL05vdmFQaWdlb24=" title="在 GitHub 上关注我" aria-label="在 GitHub 上关注我"><svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></span>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pangu/4.0.7/pangu.min.js" integrity="sha256-j+yj56cdEY2CwkVtGyz18fNybFGpMGJ8JxG3GSyO2+I=" crossorigin="anonymous"></script>
+<script src="/js/comments.js"></script><script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/sidebar.js"></script><script src="/js/next-boot.js"></script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/hexo-generator-searchdb/1.4.1/search.js" integrity="sha256-1kfA5uHPf65M5cphT2dvymhkuyHPQp5A53EGZOnOLmc=" crossorigin="anonymous"></script>
+<script src="/js/third-party/search/local-search.js"></script>
+
+  <script class="next-config" data-name="pdf" type="application/json">{"object_url":{"url":"https://cdnjs.cloudflare.com/ajax/libs/pdfobject/2.3.0/pdfobject.min.js","integrity":"sha256-JJZNsid68vnh3/zyj0lY9BN5ynxVX/12XgOa1TlaYN0="},"url":"/lib/pdf/web/viewer.html"}</script>
+  <script src="/js/third-party/tags/pdf.js"></script>
+
+  <script class="next-config" data-name="mermaid" type="application/json">{"enable":true,"theme":{"light":"default","dark":"dark"},"js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.0/mermaid.min.js","integrity":"sha256-stuqcu2FrjYCXDOytWFA5SoUE/r3nkp6gTglzNSlavU="}}</script>
+  <script src="/js/third-party/tags/mermaid.js"></script>
+
+  <script class="next-config" data-name="wavedrom" type="application/json">{"enable":true,"js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/wavedrom/3.5.0/wavedrom.min.js","integrity":"sha256-INLAoJc6quTNfiMWkGZniYO2cxE8mHpddnLow1m6RFs="}}</script>
+  <script class="next-config" data-name="wavedrom_skin" type="application/json">{"enable":true,"js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/wavedrom/3.5.0/skins/default.js","integrity":"sha256-fduc/Zszk5ezWws2uInY/ALWVmIrmV6VTgXbsYSReFI="}}</script>
+  <script src="/js/third-party/tags/wavedrom.js"></script>
+
+
+
+  <script src="/js/third-party/addtoany.js"></script>
+
+  
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+
+
+
+  
+
+  <script class="next-config" data-name="enableMath" type="application/json">true</script><script class="next-config" data-name="mathjax" type="application/json">{"enable":true,"tags":"none","single_dollars":true,"js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js","integrity":"sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI="}}</script>
+<script src="/js/third-party/math/mathjax.js"></script>
+
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/quicklink/2.3.0/quicklink.umd.js" integrity="sha256-yvJQOINiH9fWemHn0vCA5lsHWJaHs6/ZmO+1Ft04SvM=" crossorigin="anonymous"></script>
+  <script class="next-config" data-name="quicklink" type="application/json">{"enable":true,"home":true,"archive":true,"delay":true,"timeout":3000,"priority":true,"url":"https://novapigeon.github.io/2024/05/15/CrystalNet/"}</script>
+  <script src="/js/third-party/quicklink.js"></script>
+<script class="next-config" data-name="giscus" type="application/json">{"enable":true,"repo":"NovaPigeon/NovaPigeon.github.io","repo_id":"R_kgDOL7zRSg","category":"Announcements","category_id":"DIC_kwDOL7zRSs4CfX-L","mapping":"pathname","strict":0,"reactions_enabled":1,"emit_metadata":1,"theme":"light","lang":"zh-CN","crossorigin":"anonymous","input_position":"bottom","loading":"lazy"}</script>
+
+<script>
+document.addEventListener('page:loaded', () => {
+  if (!CONFIG.page.comments) return;
+
+  NexT.utils.loadComments('.giscus-container')
+    .then(() => NexT.utils.getScript('https://giscus.app/client.js', {
+      attributes: {
+        async                   : true,
+        crossOrigin             : 'anonymous',
+        'data-repo'             : CONFIG.giscus.repo,
+        'data-repo-id'          : CONFIG.giscus.repo_id,
+        'data-category'         : CONFIG.giscus.category,
+        'data-category-id'      : CONFIG.giscus.category_id,
+        'data-mapping'          : CONFIG.giscus.mapping,
+        'data-strict'           : CONFIG.giscus.strict,
+        'data-reactions-enabled': CONFIG.giscus.reactions_enabled,
+        'data-emit-metadata'    : CONFIG.giscus.emit_metadata,
+        'data-theme'            : CONFIG.giscus.theme,
+        'data-lang'             : CONFIG.giscus.lang,
+        'data-input-position'   : CONFIG.giscus.input_position,
+        'data-loading'          : CONFIG.giscus.loading
+      },
+      parentNode: document.querySelector('.giscus-container')
+    }));
+});
+</script>
+
+</body>
+</html>
