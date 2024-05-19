@@ -20,18 +20,29 @@
 
 <script class="next-config" data-name="main" type="application/json">{"hostname":"novapigeon.github.io","root":"/","images":"/images","scheme":"Gemini","darkmode":false,"version":"8.20.0","exturl":true,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"copycode":{"enable":true,"style":"mac"},"fold":{"enable":true,"height":500},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":true,"comments":{"style":"tabs","active":"giscus","storage":true,"lazyload":true,"nav":null,"activeClass":"giscus"},"stickytabs":true,"motion":{"enable":true,"async":false,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"搜索...","empty":"没有找到任何搜索结果：${query}","hits_time":"找到 ${hits} 个搜索结果（用时 ${time} 毫秒）","hits":"找到 ${hits} 个搜索结果"},"path":"/search.xml","localsearch":{"enable":true,"trigger":"auto","top_n_per_article":-1,"unescape":true,"preload":true}}</script><script src="/js/config.js"></script>
 
-    <meta name="description" content="Outperforming Larger Language Models with Less Training Data and Smaller Model Sizes">
+    <meta name="description" content="Outperforming Larger Language Models with Less Training Data and Smaller Model Sizes.">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Distilling Step-by-Step!">
 <meta property="og:url" content="https://novapigeon.github.io/2024/05/19/Distilling-Step-by-Step/index.html">
 <meta property="og:site_name" content="NovaPigeon&#39;s Blog">
-<meta property="og:description" content="Outperforming Larger Language Models with Less Training Data and Smaller Model Sizes">
+<meta property="og:description" content="Outperforming Larger Language Models with Less Training Data and Smaller Model Sizes.">
 <meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://novapigeon.github.io/2024/05/19/Distilling-Step-by-Step/p0.png">
+<meta property="og:image" content="https://novapigeon.github.io/2024/05/19/Distilling-Step-by-Step/p1.png">
+<meta property="og:image" content="https://novapigeon.github.io/2024/05/19/Distilling-Step-by-Step/p2.png">
+<meta property="og:image" content="https://novapigeon.github.io/2024/05/19/Distilling-Step-by-Step/p3.png">
+<meta property="og:image" content="https://novapigeon.github.io/2024/05/19/Distilling-Step-by-Step/p4.png">
+<meta property="og:image" content="https://novapigeon.github.io/2024/05/19/Distilling-Step-by-Step/p5.png">
+<meta property="og:image" content="https://novapigeon.github.io/2024/05/19/Distilling-Step-by-Step/p6.png">
+<meta property="og:image" content="https://novapigeon.github.io/2024/05/19/Distilling-Step-by-Step/p7.png">
 <meta property="article:published_time" content="2024-05-19T04:21:37.000Z">
-<meta property="article:modified_time" content="2024-05-19T04:23:47.307Z">
+<meta property="article:modified_time" content="2024-05-19T13:32:51.219Z">
 <meta property="article:author" content="NovaPigeon">
-<meta property="article:tag" content="[object Object]">
+<meta property="article:tag" content="MLSys">
+<meta property="article:tag" content="LLM">
+<meta property="article:tag" content="Knowledge Distilation">
 <meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://novapigeon.github.io/2024/05/19/Distilling-Step-by-Step/p0.png">
 
 
 <link rel="canonical" href="https://novapigeon.github.io/2024/05/19/Distilling-Step-by-Step/">
@@ -128,7 +139,7 @@
   
   <aside class="sidebar">
 
-    <div class="sidebar-inner sidebar-overview-active">
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
       <ul class="sidebar-nav">
         <li class="sidebar-nav-toc">
           文章目录
@@ -141,6 +152,9 @@
       <div class="sidebar-panel-container">
         <!--noindex-->
         <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#background-knowledge"><span class="nav-number">1.</span> <span class="nav-text">Background Knowledge</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#knowledge-distillation"><span class="nav-number">1.1.</span> <span class="nav-text">Knowledge Distillation</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#cotchain-of-thought"><span class="nav-number">1.2.</span> <span class="nav-text">CoT(Chain of Thought)</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#challenge-and-motivation"><span class="nav-number">2.</span> <span class="nav-text">Challenge and Motivation</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#methodology"><span class="nav-number">3.</span> <span class="nav-text">Methodology</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#inspiration"><span class="nav-number">3.1.</span> <span class="nav-text">Inspiration</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#extracting-rationalesgenerate-dataset"><span class="nav-number">3.2.</span> <span class="nav-text">Extracting
+Rationales(Generate Dataset)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#training-smaller-models-with-rationales"><span class="nav-number">3.3.</span> <span class="nav-text">Training smaller models
+with rationales</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#results"><span class="nav-number">4.</span> <span class="nav-text">Results</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8F%82%E8%80%83%E6%96%87%E7%8C%AE"><span class="nav-number">5.</span> <span class="nav-text">参考文献</span></a></li></ol></div>
         </div>
         <!--/noindex-->
 
@@ -207,7 +221,7 @@
 
     <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
       <meta itemprop="name" content="Distilling Step-by-Step! | NovaPigeon's Blog">
-      <meta itemprop="description" content="Outperforming Larger Language Models with Less Training Data and Smaller Model Sizes">
+      <meta itemprop="description" content="Outperforming Larger Language Models with Less Training Data and Smaller Model Sizes.">
     </span>
       <header class="post-header">
         <h1 class="post-title" itemprop="name headline">
@@ -223,7 +237,7 @@
       <span class="post-meta-item-text">发表于</span>
       
 
-      <time title="创建时间：2024-05-19 12:21:37 / 修改时间：12:23:47" itemprop="dateCreated datePublished" datetime="2024-05-19T12:21:37+08:00">2024-05-19</time>
+      <time title="创建时间：2024-05-19 12:21:37 / 修改时间：21:32:51" itemprop="dateCreated datePublished" datetime="2024-05-19T12:21:37+08:00">2024-05-19</time>
     </span>
     <span class="post-meta-item">
       <span class="post-meta-item-icon">
@@ -245,14 +259,117 @@
     </span>
 </div>
 
-            <div class="post-description">Outperforming Larger Language Models with Less Training Data and Smaller Model Sizes</div>
+            <div class="post-description">Outperforming Larger Language Models with Less Training Data and Smaller Model Sizes.</div>
         </div>
       </header>
 
     
     
     
-    <div class="post-body" itemprop="articleBody">
+    <div class="post-body" itemprop="articleBody"><h2 id="background-knowledge">Background Knowledge</h2>
+<h3 id="knowledge-distillation">Knowledge Distillation</h3>
+<p>Knowledge Distillation, 知识蒸馏，是一种模型压缩技术。
+如图所示，一个小的 student model 模仿一个大的 teacher model，利用
+teacher model 所蕴含的知识获得相似或更高的准确度。
+我们可以利用这种技术，将大模型压缩为可以灵活部署的小模型。</p>
+<img src="/2024/05/19/Distilling-Step-by-Step/p0.png" class="">
+<h3 id="cotchain-of-thought">CoT(Chain of Thought)</h3>
+<p>CoT，思维链。
+就是说让大模型逐步将一个复杂问题分解为子问题并依次求解，可以显著提升模型的性能。
+传统的 prompt 产生的是 input-&gt;output 的，但 CoT prompt 生成的是
+input-&gt;reasoning chain-&gt;output。在 CoT
+的过程中，会强迫大模型完成推理，在一系列大模型本来就蕴含的知识之间搭起桥梁，起到激活/串联的效果。
+典型的，在指令中加上 "Let's think step by step"
+就可以唤醒大模型的推理能力。这就是 "Zero-Shot CoT"。 如果在 prompt
+中加上示例，用于指定大模型输入输出的格式，则是 "Few-Shot CoT"。</p>
+<h2 id="challenge-and-motivation">Challenge and Motivation</h2>
+<p>大模型的部署需要庞大的内存和算力，往往超出了个人或小团队的承载能力。</p>
+<p>因此，从业者会选择部署小规模的专用模型。一般由两种方法来得到这些模型：</p>
+<ol type="1">
+<li>Finetune（微调），通过人工标注的数据来更新预训练的小模型。</li>
+<li>Distillation（蒸馏），喂给 teacher model 未标注数据，teacher model
+生成标签，来训练 student model。</li>
+</ol>
+<p>但是，finetune 需要昂贵的人工标注数据，而 Distillation
+则需要大量的未标注数据，这一般很难拿到。</p>
+<img src="/2024/05/19/Distilling-Step-by-Step/p1.png" class="">
+<p>因此，这篇 paper 提出了一种用较少的数据来训练小模型的机制。</p>
+<h2 id="methodology">Methodology</h2>
+<h3 id="inspiration">Inspiration</h3>
+<p>解决上述问题的灵感来自于 CoT(思维链)。</p>
+<p>大模型在推理时可以生成一系列的中间步骤（rationales），用于解释最终的输出，我们可以提取这些中间步骤，用于小模型的训练。</p>
+<p>给个例子。 问题：有一个长为 15m，宽为 11m 的房间，其中 16
+平米已经铺了地砖，请问还要铺多少平米的地砖？ 中间步骤：面积=长 *
+宽，这个房间的面积是 15x11 平米。 答案：(11x15)-16</p>
+<p>中间步骤会提供更多的额外信息，譬如说面积的计算公式，以往这些信息一般需要更多的数据才能被小模型学会。</p>
+<h3 id="extracting-rationalesgenerate-dataset">Extracting
+Rationales(Generate Dataset)</h3>
+<p>首先需要通过未标注的数据和大模型，得到训练小模型要用的数据（包含
+rationale/label）。 这一步很简单，通过在输入前添加 prompt 实现。 prompt
+是一个输入输出的样例，包含样例输入，样例输出和
+rantionales，告诉大模型需要在生成结果的同时生成 rationales。</p>
+<img src="/2024/05/19/Distilling-Step-by-Step/p2.png" class="">
+<p>形式化一下：</p>
+<ul>
+<li>Unlabled dataset: <span
+class="math inline">\(D_{unlabled}=\{x_i\}\)</span></li>
+<li>Prompt triplet: <span
+class="math inline">\(P=(x^P,r^P,y^P)\)</span></li>
+<li>LLM output: <span
+class="math inline">\((\hat{y_i},\hat{r_i})=LLM(x_i,P)\)</span></li>
+<li>Training dataset: <span
+class="math inline">\(D=\{(x_i,\hat{y_i},\hat{r_i})\}\)</span></li>
+<li>Small model: <span class="math inline">\(f\)</span></li>
+</ul>
+<h3 id="training-smaller-models-with-rationales">Training smaller models
+with rationales</h3>
+<p>一般的，如果不使用 rationales，那么蒸馏使用 LLM 生成的 label
+来作为训练 label。</p>
+<p><span
+class="math display">\[\mathcal{L}_{label}=\frac{1}{N}\sum_{i=1}^N
+l(f(x_i),\hat{y_i})\]</span></p>
+<p>但是，怎么把 rationales 加进 training 过程中呢？</p>
+<p>一种直接的思路是将 rationales
+作为小模型的额外输入来训练，最近的一些工作就是这么做的。</p>
+<p><span class="math display">\[f(x_i,\hat{r_i})\rightarrow
+\hat{y_i}\]</span></p>
+<p><span class="math display">\[\mathcal{L}=\frac{1}{N}\sum_{i=1}^N
+l(f(x_i,\hat{r_i}),\hat{y_i})\]</span></p>
+<p>但是，因为小模型需要额外的 rationales
+作为输入，所以在推理时大模型仍然是必要的，因为需要先通过大模型生成
+rationales，小模型才能产生输出。这与知识蒸馏的初衷背道而驰，因为大模型在部署时仍然是必要的。</p>
+<p>因此，这篇 paper 采用了另外一种方法，使小模型同时输出 label 和
+rationales。在输入前添加前缀 [lable]/[rationale],当前缀为 [lable] 时输出
+<span class="math inline">\(y_i\)</span>，前缀为 [rationale] 时输出
+<span class="math inline">\(r_i\)</span>。损失函数则是两者的加权。</p>
+<p><span class="math display">\[f(x_i)\rightarrow (y_i,r_i)\]</span>
+<span
+class="math display">\[\mathcal{L}_{rationale}=\frac{1}{N}\sum_{i=1}^N
+l(f(x_i),\hat{r_i})\]</span> <span
+class="math display">\[\mathcal{L}=\mathcal{L}_{lable}+\lambda
+\mathcal{L}_{rationale}\]</span></p>
+<p>与之前的方法相比，小模型部署时不再依赖大模型。并且在训练中学习到了大模型的中间推理步骤。</p>
+<img src="/2024/05/19/Distilling-Step-by-Step/p3.png" class="">
+<h2 id="results">Results</h2>
+<ol type="1">
+<li>与传统的 finetune/KD 相比，上述方法可以在仅使用 15%-50%
+的训练数据的情况下，达到更好的性能。</li>
+<li>与 LLM 相比，可以用更小的模型大小（最小是 LLM 的 1/2000）取得比 LLM
+更好的表现。</li>
+<li>使用了更少的数据和更小的模型，在性能上超越了 LLM。</li>
+</ol>
+<img src="/2024/05/19/Distilling-Step-by-Step/p4.png" class="">
+<img src="/2024/05/19/Distilling-Step-by-Step/p5.png" class="">
+<img src="/2024/05/19/Distilling-Step-by-Step/p6.png" class="">
+<img src="/2024/05/19/Distilling-Step-by-Step/p7.png" class="">
+<h2 id="参考文献">参考文献</h2>
+<p>[1] Distilling Step-by-Step! Outperforming Larger Language Models
+with Less Training Data and Smaller Model Sizes, <span class="exturl" data-url="aHR0cHM6Ly9hcnhpdi5vcmcvYWJzLzIzMDUuMDIzMDE=">https://arxiv.org/abs/2305.02301<i class="fa fa-external-link-alt"></i></span>. [2] A Survey on
+Knowledge Distillation of Large Language Model, <span class="exturl" data-url="aHR0cHM6Ly9hcnhpdi5vcmcvYWJzLzI0MDIuMTMxMTY=">https://arxiv.org/abs/2402.13116<i class="fa fa-external-link-alt"></i></span>. [3]
+一文读懂：大模型思维链 CoT（Chain of Thought）, <span class="exturl" data-url="aHR0cHM6Ly96aHVhbmxhbi56aGlodS5jb20vcC82NzA5MDc2ODU=">https://zhuanlan.zhihu.com/p/670907685<i class="fa fa-external-link-alt"></i></span>. [4]
+知识蒸馏：原理、算法、应用, <span class="exturl" data-url="aHR0cHM6Ly96aHVhbmxhbi56aGlodS5jb20vcC82MzcxMDg2MTc=">https://zhuanlan.zhihu.com/p/637108617<i class="fa fa-external-link-alt"></i></span>. [5]
+论文笔记（LLM+蒸馏）：Distilling step-by-step+代码分析, <span class="exturl" data-url="aHR0cHM6Ly96aHVhbmxhbi56aGlodS5jb20vcC82NDIzMDAwNzI=">https://zhuanlan.zhihu.com/p/642300072<i class="fa fa-external-link-alt"></i></span>. [6]
+大规模语言模型知识蒸馏综述 <span class="exturl" data-url="aHR0cHM6Ly96aHVhbmxhbi56aGlodS5jb20vcC82OTU2NDAxNjg=">https://zhuanlan.zhihu.com/p/695640168<i class="fa fa-external-link-alt"></i></span>.</p>
 
     </div>
 
@@ -262,7 +379,9 @@
 
     <footer class="post-footer">
           <div class="post-tags">
-              <a href="/tags/object-Object/" rel="tag"># [object Object]</a>
+              <a href="/tags/MLSys/" rel="tag"># MLSys</a>
+              <a href="/tags/LLM/" rel="tag"># LLM</a>
+              <a href="/tags/Knowledge-Distilation/" rel="tag"># Knowledge Distilation</a>
           </div>
 
         

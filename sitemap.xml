@@ -2,7 +2,7 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   
   <url>
-    <loc>https://novapigeon.github.io/2024/05/19/Distilling-Step-by-Step/</loc>
+    <loc>https://novapigeon.github.io/2024/05/15/ZeroQuant/</loc>
     
     <lastmod>2024-05-19</lastmod>
     
@@ -11,9 +11,9 @@
   </url>
   
   <url>
-    <loc>https://novapigeon.github.io/2024/05/15/ZeroQuant/</loc>
+    <loc>https://novapigeon.github.io/2024/05/19/Distilling-Step-by-Step/</loc>
     
-    <lastmod>2024-05-18</lastmod>
+    <lastmod>2024-05-19</lastmod>
     
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
@@ -133,27 +133,6 @@
   </url>
   
   <url>
-    <loc>https://novapigeon.github.io/tags/object-Object/</loc>
-    <lastmod>2024-05-19</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.2</priority>
-  </url>
-  
-  <url>
-    <loc>https://novapigeon.github.io/tags/MicroService/</loc>
-    <lastmod>2024-05-19</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.2</priority>
-  </url>
-  
-  <url>
-    <loc>https://novapigeon.github.io/tags/Network-Simulation/</loc>
-    <lastmod>2024-05-19</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.2</priority>
-  </url>
-  
-  <url>
     <loc>https://novapigeon.github.io/tags/MLSys/</loc>
     <lastmod>2024-05-19</lastmod>
     <changefreq>weekly</changefreq>
@@ -168,7 +147,28 @@
   </url>
   
   <url>
+    <loc>https://novapigeon.github.io/tags/Knowledge-Distilation/</loc>
+    <lastmod>2024-05-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
     <loc>https://novapigeon.github.io/tags/Quantization/</loc>
+    <lastmod>2024-05-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://novapigeon.github.io/tags/MicroService/</loc>
+    <lastmod>2024-05-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://novapigeon.github.io/tags/Network-Simulation/</loc>
     <lastmod>2024-05-19</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>

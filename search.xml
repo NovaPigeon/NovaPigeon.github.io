@@ -218,13 +218,315 @@ boundary of datacenter</h3>
   <entry>
     <title>Distilling Step-by-Step!</title>
     <url>/2024/05/19/Distilling-Step-by-Step/</url>
-    <content><![CDATA[
+    <content><![CDATA[<h2 id="background-knowledge">Background Knowledge</h2>
+<h3 id="knowledge-distillation">Knowledge Distillation</h3>
+<p>Knowledge Distillation, 知识蒸馏，是一种模型压缩技术。
+如图所示，一个小的 student model 模仿一个大的 teacher model，利用
+teacher model 所蕴含的知识获得相似或更高的准确度。
+我们可以利用这种技术，将大模型压缩为可以灵活部署的小模型。</p>
+<img src="/2024/05/19/Distilling-Step-by-Step/p0.png" class="">
+<h3 id="cotchain-of-thought">CoT(Chain of Thought)</h3>
+<p>CoT，思维链。
+就是说让大模型逐步将一个复杂问题分解为子问题并依次求解，可以显著提升模型的性能。
+传统的 prompt 产生的是 input-&gt;output 的，但 CoT prompt 生成的是
+input-&gt;reasoning chain-&gt;output。在 CoT
+的过程中，会强迫大模型完成推理，在一系列大模型本来就蕴含的知识之间搭起桥梁，起到激活/串联的效果。
+典型的，在指令中加上 "Let's think step by step"
+就可以唤醒大模型的推理能力。这就是 "Zero-Shot CoT"。 如果在 prompt
+中加上示例，用于指定大模型输入输出的格式，则是 "Few-Shot CoT"。</p>
+<h2 id="challenge-and-motivation">Challenge and Motivation</h2>
+<p>大模型的部署需要庞大的内存和算力，往往超出了个人或小团队的承载能力。</p>
+<p>因此，从业者会选择部署小规模的专用模型。一般由两种方法来得到这些模型：</p>
+<ol type="1">
+<li>Finetune（微调），通过人工标注的数据来更新预训练的小模型。</li>
+<li>Distillation（蒸馏），喂给 teacher model 未标注数据，teacher model
+生成标签，来训练 student model。</li>
+</ol>
+<p>但是，finetune 需要昂贵的人工标注数据，而 Distillation
+则需要大量的未标注数据，这一般很难拿到。</p>
+<img src="/2024/05/19/Distilling-Step-by-Step/p1.png" class="">
+<p>因此，这篇 paper 提出了一种用较少的数据来训练小模型的机制。</p>
+<h2 id="methodology">Methodology</h2>
+<h3 id="inspiration">Inspiration</h3>
+<p>解决上述问题的灵感来自于 CoT(思维链)。</p>
+<p>大模型在推理时可以生成一系列的中间步骤（rationales），用于解释最终的输出，我们可以提取这些中间步骤，用于小模型的训练。</p>
+<p>给个例子。 问题：有一个长为 15m，宽为 11m 的房间，其中 16
+平米已经铺了地砖，请问还要铺多少平米的地砖？ 中间步骤：面积=长 *
+宽，这个房间的面积是 15x11 平米。 答案：(11x15)-16</p>
+<p>中间步骤会提供更多的额外信息，譬如说面积的计算公式，以往这些信息一般需要更多的数据才能被小模型学会。</p>
+<h3 id="extracting-rationalesgenerate-dataset">Extracting
+Rationales(Generate Dataset)</h3>
+<p>首先需要通过未标注的数据和大模型，得到训练小模型要用的数据（包含
+rationale/label）。 这一步很简单，通过在输入前添加 prompt 实现。 prompt
+是一个输入输出的样例，包含样例输入，样例输出和
+rantionales，告诉大模型需要在生成结果的同时生成 rationales。</p>
+<img src="/2024/05/19/Distilling-Step-by-Step/p2.png" class="">
+<p>形式化一下：</p>
+<ul>
+<li>Unlabled dataset: <span
+class="math inline">\(D_{unlabled}=\{x_i\}\)</span></li>
+<li>Prompt triplet: <span
+class="math inline">\(P=(x^P,r^P,y^P)\)</span></li>
+<li>LLM output: <span
+class="math inline">\((\hat{y_i},\hat{r_i})=LLM(x_i,P)\)</span></li>
+<li>Training dataset: <span
+class="math inline">\(D=\{(x_i,\hat{y_i},\hat{r_i})\}\)</span></li>
+<li>Small model: <span class="math inline">\(f\)</span></li>
+</ul>
+<h3 id="training-smaller-models-with-rationales">Training smaller models
+with rationales</h3>
+<p>一般的，如果不使用 rationales，那么蒸馏使用 LLM 生成的 label
+来作为训练 label。</p>
+<p><span
+class="math display">\[\mathcal{L}_{label}=\frac{1}{N}\sum_{i=1}^N
+l(f(x_i),\hat{y_i})\]</span></p>
+<p>但是，怎么把 rationales 加进 training 过程中呢？</p>
+<p>一种直接的思路是将 rationales
+作为小模型的额外输入来训练，最近的一些工作就是这么做的。</p>
+<p><span class="math display">\[f(x_i,\hat{r_i})\rightarrow
+\hat{y_i}\]</span></p>
+<p><span class="math display">\[\mathcal{L}=\frac{1}{N}\sum_{i=1}^N
+l(f(x_i,\hat{r_i}),\hat{y_i})\]</span></p>
+<p>但是，因为小模型需要额外的 rationales
+作为输入，所以在推理时大模型仍然是必要的，因为需要先通过大模型生成
+rationales，小模型才能产生输出。这与知识蒸馏的初衷背道而驰，因为大模型在部署时仍然是必要的。</p>
+<p>因此，这篇 paper 采用了另外一种方法，使小模型同时输出 label 和
+rationales。在输入前添加前缀 [lable]/[rationale],当前缀为 [lable] 时输出
+<span class="math inline">\(y_i\)</span>，前缀为 [rationale] 时输出
+<span class="math inline">\(r_i\)</span>。损失函数则是两者的加权。</p>
+<p><span class="math display">\[f(x_i)\rightarrow (y_i,r_i)\]</span>
+<span
+class="math display">\[\mathcal{L}_{rationale}=\frac{1}{N}\sum_{i=1}^N
+l(f(x_i),\hat{r_i})\]</span> <span
+class="math display">\[\mathcal{L}=\mathcal{L}_{lable}+\lambda
+\mathcal{L}_{rationale}\]</span></p>
+<p>与之前的方法相比，小模型部署时不再依赖大模型。并且在训练中学习到了大模型的中间推理步骤。</p>
+<img src="/2024/05/19/Distilling-Step-by-Step/p3.png" class="">
+<h2 id="results">Results</h2>
+<ol type="1">
+<li>与传统的 finetune/KD 相比，上述方法可以在仅使用 15%-50%
+的训练数据的情况下，达到更好的性能。</li>
+<li>与 LLM 相比，可以用更小的模型大小（最小是 LLM 的 1/2000）取得比 LLM
+更好的表现。</li>
+<li>使用了更少的数据和更小的模型，在性能上超越了 LLM。</li>
+</ol>
+<img src="/2024/05/19/Distilling-Step-by-Step/p4.png" class="">
+<img src="/2024/05/19/Distilling-Step-by-Step/p5.png" class="">
+<img src="/2024/05/19/Distilling-Step-by-Step/p6.png" class="">
+<img src="/2024/05/19/Distilling-Step-by-Step/p7.png" class="">
+<h2 id="参考文献">参考文献</h2>
+<p>[1] Distilling Step-by-Step! Outperforming Larger Language Models
+with Less Training Data and Smaller Model Sizes, <span class="exturl" data-url="aHR0cHM6Ly9hcnhpdi5vcmcvYWJzLzIzMDUuMDIzMDE=">https://arxiv.org/abs/2305.02301<i class="fa fa-external-link-alt"></i></span>. [2] A Survey on
+Knowledge Distillation of Large Language Model, <span class="exturl" data-url="aHR0cHM6Ly9hcnhpdi5vcmcvYWJzLzI0MDIuMTMxMTY=">https://arxiv.org/abs/2402.13116<i class="fa fa-external-link-alt"></i></span>. [3]
+一文读懂：大模型思维链 CoT（Chain of Thought）, <span class="exturl" data-url="aHR0cHM6Ly96aHVhbmxhbi56aGlodS5jb20vcC82NzA5MDc2ODU=">https://zhuanlan.zhihu.com/p/670907685<i class="fa fa-external-link-alt"></i></span>. [4]
+知识蒸馏：原理、算法、应用, <span class="exturl" data-url="aHR0cHM6Ly96aHVhbmxhbi56aGlodS5jb20vcC82MzcxMDg2MTc=">https://zhuanlan.zhihu.com/p/637108617<i class="fa fa-external-link-alt"></i></span>. [5]
+论文笔记（LLM+蒸馏）：Distilling step-by-step+代码分析, <span class="exturl" data-url="aHR0cHM6Ly96aHVhbmxhbi56aGlodS5jb20vcC82NDIzMDAwNzI=">https://zhuanlan.zhihu.com/p/642300072<i class="fa fa-external-link-alt"></i></span>. [6]
+大规模语言模型知识蒸馏综述 <span class="exturl" data-url="aHR0cHM6Ly96aHVhbmxhbi56aGlodS5jb20vcC82OTU2NDAxNjg=">https://zhuanlan.zhihu.com/p/695640168<i class="fa fa-external-link-alt"></i></span>.</p>
 ]]></content>
       <categories>
         <category>Paper Reading</category>
       </categories>
       <tags>
-        <tag>[object Object]</tag>
+        <tag>MLSys</tag>
+        <tag>LLM</tag>
+        <tag>Knowledge Distilation</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>ZeroQuant</title>
+    <url>/2024/05/15/ZeroQuant/</url>
+    <content><![CDATA[<h2 id="background-knowledge">Background Knowledge</h2>
+<h3 id="quantization">Quantization:</h3>
+<p>Idea
+很简单，就是把模型的参数和运算从浮点数（FP32）映射到较低的精度，比如
+INT8。这样做有两点好处。</p>
+<ol type="1">
+<li>减小了模型的大小，降低了内存开销。</li>
+<li>一般来讲 CPU/GPU
+做整形运算的速度都比浮点运算快，可以提升推理速度。</li>
+</ol>
+<p>映射需要在降低模型精度的同时，维持量化之后参数分布与量化之前分布的同构性。其实线性映射就能做的很好了。</p>
+<p>如下式所示，将原始值 <span class="math inline">\(r\)</span> 映射到
+<span class="math inline">\([q_{min},q_{max}]\)</span></p>
+<p><span
+class="math display">\[S=\frac{r_{max}-r_{min}}{q_{max}-q_{min}}\]</span>
+<span class="math display">\[Z=-\frac{r_{min}}{S}+q_{min}\]</span> <span
+class="math display">\[q=\lfloor \frac{r}{S}+Z \rfloor\]</span></p>
+<p>其中，<span class="math inline">\(S\)</span> 用于缩放，<span
+class="math inline">\(Z\)</span> 用于确定零点。我们需要做的就是确定
+<span class="math inline">\(S,Z\)</span>。 可以看出来，在量化的计算中
+<span class="math inline">\(r_{range}=r_{max}-r_{min}\)</span>
+是至关重要的，量化的结果也是 range 敏感的。
+在下面论文的讲解中我们也会用到这点。</p>
+<p>模型量化的对象主要有 Weight, Activation, KV cache,
+Gradients。(量化的不仅是参数，还有运算)</p>
+<h3 id="dequantization">Dequantization:</h3>
+<p>模型中一些算子支持低精度表示，那么很好，直接算就行了。</p>
+<p>但还有一些算子需要高精度的输入输出（低精度导致很大的误差），就需要将
+INT8 反量化为 FP32 再喂给算子计算。</p>
+<p><span class="math display">\[r=S(q-Z)\]</span></p>
+<p>这会引入误差。</p>
+<h3
+id="ptqpost-training-quatization">PTQ(Post-training-quatization)</h3>
+<p>PTQ，即训练后量化，在模型完成训练之后对模型进行量化。</p>
+<p>之前说过，量化需要确定 <span class="math inline">\(S,Z\)</span>，而
+<span class="math inline">\(S,Z\)</span> 又由 <span
+class="math inline">\(r_{max},r_{min}\)</span> 确定，PTQ
+通过选取少量校准数据估算出参数分布，来得到 <span
+class="math inline">\(r_{max},r_{min}\)</span>。</p>
+<p>以 FP32-&gt;INT8 的 PTQ 为例： 1. 训练出 FP32 的 baseline 模型。 2.
+Calibration：使用少量数据估算得到网络各层 weight/activation 的分布，得到
+<span class="math inline">\(r_{max},r_{min}\)</span> 3. 算出各层的 <span
+class="math inline">\(S,Z\)</span>。 4. 用 <span
+class="math inline">\(S,Z\)</span>，将 FP32 的 baseline 量化得到
+INT8。</p>
+<p>PTQ 运算速度较快，但会损失一定精度。</p>
+<h3
+id="qatquantization-aware-training">QAT(Quantization-aware-training)</h3>
+<p>QAT，即量化感知训练。PTQ 中训练与量化是分开的，但是 QAT
+通过在训练时加入伪量化算子，模拟量化带来的误差。</p>
+<p>以 FP32-&gt;INT8 的 QAT 为例： 1. 训练出 FP32 的 baseline 模型。 2.
+在 baseline model 中加入插入伪量化算子，在数据集上 finetune 得到的 QAT
+model。 3. 伪量化算子模拟推理时的量化，并保存 finetune
+时得到的量化参数。 4. finetune 完成后，使用量化参数将 QAT model 量化为
+INT8 model。</p>
+<p>伪量化算子就是量化与反量化算子的结合，模拟 round
+带来的误差，定义如下，</p>
+<p><span class="math display">\[clamp(r;a,b)=min(max(x,a),b)\]</span>
+<span class="math display">\[s(a,b,n)=\frac{b-a}{n-1}\]</span> <span
+class="math display">\[q(r;a,b,n)=\lfloor\frac{clamp(r;a,b)-a}{s(a,b,n)}\rfloor
+s(a,b,n)+a\]</span></p>
+<h2 id="challenge-and-motivation">Challenge and Motivation</h2>
+<p>随着大模型的规模急剧增加，大模型的推理面对着两个问题，极高 GPU
+内存占用和计算开销。</p>
+<p>而解决这一问题的办法之一就是量化。其一可以降低模型的内存占用，其二可以提升模型的运算性能。</p>
+<p>然而，为了弥补量化导致的精度损失，通常需要使用 QAT 技术，retrain
+模型。这会带来几个问题：</p>
+<ol type="1">
+<li>训练用的数据往往不是公开的。</li>
+<li>重新训练模型所需要很多计算资源。</li>
+<li>耗时很久。</li>
+</ol>
+<p>PTQ 技术就能解决这些问题，因为 PTQ</p>
+<ol type="1">
+<li>不需要训练数据。</li>
+<li>极少的计算资源。</li>
+<li>几乎不需要重新训练。</li>
+</ol>
+<p>最近也有一些关于 PTQ 的量化工作，但是这些工作</p>
+<ol type="1">
+<li>只关注小规模的 CV 问题。</li>
+<li>只局限于高精度量化（INT8/FP16），且只支持 BERT 模型。</li>
+<li>不关注量化和反量化开销。（这是性能的重要组成部分）</li>
+<li>对于极端量化（如
+INT4）或更高的精度，通常使用知识蒸馏，导致额外的开销。</li>
+</ol>
+<p>我们想要使用 PTQ 技术来解决上述问题，但是直接使用 PTQ
+技术是不可行的，会导致 accuracy 的下降。 如图所示，图中 WXAY 代表 Weight
+和 Activation 的量化精度。</p>
+<img src="/2024/05/15/ZeroQuant/f2.png" class="">
+<p>可以看到，INT8 激活量化带来了主要的精度损失，而 weight
+量化会导致生成式任务的性能变差。（但 zero-shot 对此不敏感）</p>
+<p>为什么 INT8 量化会导致精度损失呢？</p>
+<ol type="1">
+<li>激活层的 range 是动态变化的，左图显示了对不同 token
+而言，激活层输出的 range 有非常大的差异。譬如说 layer11，最小的 range 为
+8，最大的 range 为 35。如果对所有 token 使用相同的量化范围的话，range
+较小的 token 就会损失很多精度。</li>
+<li>Weight 中不同行的 range 差距极大。如右图所示，不同行的 range
+之间最多有十倍的差距，但是 PTQ 对整个 Weight Matrix
+是一起量化的，取的是整个 Weight 的范围。导致 PTQ 的性能较差。如果使用
+INT4 量化（总共 16 个数），那对于 range 较小的行，可能只有 2-3
+个数的表示范围。</li>
+</ol>
+<img src="/2024/05/15/ZeroQuant/f1.png" class="">
+<h2 id="methodology">Methodology</h2>
+<p>为此，Paper 提出了以下几个技术：</p>
+<h3 id="group-wise-quantization-for-weights">Group-wise Quantization for
+Weights：</h3>
+<ol type="1">
+<li>将权重矩阵划分为多个组，每个组分别量化。</li>
+<li>针对 GPU 做了优化，降低了推理延迟。</li>
+</ol>
+<img src="/2024/05/15/ZeroQuant/f4.png" class="">
+<h3 id="token-wise-quantization-for-activations">Token-wise Quantization
+for Activations</h3>
+<ol type="1">
+<li>PTQ
+一般是静态量化激活的。譬如说离线校准时计算出激活层范围。但是，对于大模型而言，不同
+token 的激活范围差异极大，统一静态的量化会导致极大的精度损失。</li>
+<li>自然的想法是使用更细粒度的量化策略。这篇 paper 提出了逐 token
+量化的技术，动态计算每个 token 的激活值范围，再做量化。</li>
+<li>消除了激活范围校准的开销。</li>
+<li>但是，逐 token 量化会引入显著的量化和反量化成本，为此，paper
+设计了一个高度优化的推理后端。</li>
+</ol>
+<h3
+id="quantization-optimized-transformer-kernels">Quantization-Optimized
+Transformer Kernels</h3>
+<ol type="1">
+<li>在推理过程中，batch-size 较小，因此推理的延迟主要是 device 和 host
+之间的内存搬运导致的。</li>
+<li>量化本身降低了模型的大小，减少了加载的数据量。但是，量化和反量化运算又导致了额外的开销。</li>
+<li>使用 CUTLASS INT8 GeMM（通用矩阵乘）。适配 INT8 计算和 kernel
+fuse。</li>
+<li>Fusing Token-wise Activation Quantization。使用 kernel fuse 技术，将
+Activation 的量化操作与之前的运算融合为一个运算，将反量化与 GeMM
+融合为一个运算，由于融合的运算使用的是相同的数据，因此规避了量化/反量化带来的额外内存搬运开销。</li>
+</ol>
+<img src="/2024/05/15/ZeroQuant/f3.png" class="">
+<h3 id="layer-by-layer-knowledge-distillation-lkd">Layer-by-layer
+knowledge distillation (LKD)</h3>
+<ol type="1">
+<li>知识蒸馏可以有效降低量化导致的精度损失。</li>
+<li>但是，知识蒸馏会极大增加内存和计算成本，而且往往需要原始训练数据（经常拿不到）。</li>
+</ol>
+<p>所以，paper 提出了逐层蒸馏技术。假设目标模型有 <span
+class="math inline">\(N\)</span> 个 transformer 块 <span
+class="math inline">\(L_1,L_2,\dots L_N\)</span>，数据集为 <span
+class="math inline">\((X,Y)\)</span>，可以是原始训练数据，也可以来自其他地方。</p>
+<p>LKD 使用未量化的模型作为教师模型。若 <span
+class="math inline">\(L_k\)</span> 被量化，其量化后的版本为 <span
+class="math inline">\(\hat{L_k}\)</span>。那么用 <span
+class="math inline">\(L_{k-1}\)</span> 的输出来作为 <span
+class="math inline">\(L_k,\hat{L_k}\)</span>的输入，度量学生模型和教师模型的差距，然后更新
+<span class="math inline">\(L_k\)</span>。具体就像这个公式一样。</p>
+<p><span
+class="math display">\[\mathcal{L}_{LKD,k}=MSE(L_k(L_{k-1}(...L_1(X)...))-\hat{L_k}(L_{k-1}(...L_1(X)...)))\]</span></p>
+<p>这么做带来了以下好处：</p>
+<ol type="1">
+<li>LKD 不需要额外的教师模型，而且学生和教师模型共享
+L1-Lk-1，其运算结果在之前的迭代中以及知道了，所以额外的运算成本只有
+Lk（类似动态规划）。</li>
+<li>唯一需要 optimize 的层是 Lk，所以只要将 Lk 加载进内存。</li>
+<li>LKD 是逐层优化的，并不优化端到端的模型，所以 LKD
+不依赖于原始数据。</li>
+</ol>
+<h2 id="results">Results</h2>
+<ul>
+<li>ZeroQuant 可以将 BERT 和 类GPT-3 等模型的权重和激活精度降低到
+INT8，对模型准确率的影响最小，同时，与 FP16
+推理相比，这些模型的推理速度提高了 5.19 倍/4.16 倍；</li>
+<li>ZeroQuant 加上 LKD 可将全连接模块中的权重量化为
+INT4，以及注意力模块中的INT8权重和INT8激活，与FP16模型相比，内存占用减少了3倍；</li>
+<li>ZeroQuant可以直接应用于GPT-J和GPT-NeoX等，其中我们的INT8模型达到了与FP16模型相似的精度，但效率提高了5.2倍。</li>
+</ul>
+<h2 id="参考文献">参考文献</h2>
+<p>[1] ZeroQuant: Efficient and Affordable Post-Training Quantization
+for Large-Scale Transformers, <span class="exturl" data-url="aHR0cHM6Ly9hcnhpdi5vcmcvYWJzLzIyMDYuMDE4NjE=">https://arxiv.org/abs/2206.01861<i class="fa fa-external-link-alt"></i></span>. [2] ZeroQuant
+vedio&amp;slides, <span class="exturl" data-url="aHR0cHM6Ly9zbGlkZXNsaXZlLmNvbS8zODk5MTQ4NC96ZXJvcXVhbnQtZWZmaWNpZW50LWFuZC1hZmZvcmRhYmxlLXBvc3R0cmFpbmluZy1xdWFudGl6YXRpb24tZm9yLWxhcmdlc2NhbGUtdHJhbnNmb3JtZXJz">https://slideslive.com/38991484/zeroquant-efficient-and-affordable-posttraining-quantization-for-largescale-transformers<i class="fa fa-external-link-alt"></i></span>.
+[3] 大模型压缩首篇综述来啦~, <span class="exturl" data-url="aHR0cHM6Ly96aHVhbmxhbi56aGlodS5jb20vcC82NTI0MzQxNjU=">https://zhuanlan.zhihu.com/p/652434165<i class="fa fa-external-link-alt"></i></span>. [4]
+量化感知训练（Quantization-aware-training）探索-从原理到实践, <span class="exturl" data-url="aHR0cHM6Ly96aHVhbmxhbi56aGlodS5jb20vcC81NDgxNzQ0MTY=">https://zhuanlan.zhihu.com/p/548174416<i class="fa fa-external-link-alt"></i></span>. [5]
+目前针对大模型进行量化的方法有哪些？, <span class="exturl" data-url="aHR0cHM6Ly93d3cuemhpaHUuY29tL3F1ZXN0aW9uLzYyNzQ4NDczMi9hbnN3ZXIvMzI2MTY3MTQ3OA==">https://www.zhihu.com/question/627484732/answer/3261671478<i class="fa fa-external-link-alt"></i></span>.
+[6] 大模型量化技术原理-ZeroQuant系列, <span class="exturl" data-url="aHR0cHM6Ly96aHVhbmxhbi56aGlodS5jb20vcC82ODM4MTM3Njk=">https://zhuanlan.zhihu.com/p/683813769<i class="fa fa-external-link-alt"></i></span></p>
+]]></content>
+      <categories>
+        <category>Paper Reading</category>
+      </categories>
+      <tags>
+        <tag>MLSys</tag>
+        <tag>LLM</tag>
+        <tag>Quantization</tag>
       </tags>
   </entry>
   <entry>
@@ -779,196 +1081,6 @@ href="./clustering/">clustering</a>.</p>
       <tags>
         <tag>Network</tag>
         <tag>Network Simulation</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>ZeroQuant</title>
-    <url>/2024/05/15/ZeroQuant/</url>
-    <content><![CDATA[<h1 id="zeroquant">Zeroquant</h1>
-<h2 id="background-knowledge">Background Knowledge</h2>
-<h3 id="quantization">Quantization:</h3>
-<p>Idea
-很简单，就是把模型的参数和运算从浮点数（FP32）映射到较低的精度，比如
-INT8。这样做有两点好处。</p>
-<ol type="1">
-<li>减小了模型的大小，降低了内存开销。</li>
-<li>一般来讲 CPU/GPU
-做整形运算的速度都比浮点运算快，可以提升推理速度。</li>
-</ol>
-<p>映射需要在降低模型精度的同时，维持量化之后参数分布与量化之前分布的同构性。其实线性映射就能做的很好了。</p>
-<p>如下式所示，将原始值 <span class="math inline">\(r\)</span> 映射到
-<span class="math inline">\([q_{min},q_{max}]\)</span></p>
-<p><span
-class="math display">\[S=\frac{r_{max}-r_{min}}{q_{max}-q_{min}}\]</span>
-<span class="math display">\[Z=-\frac{r_{min}}{S}+q_{min}\]</span> <span
-class="math display">\[q=\lfloor \frac{r}{S}+Z \rfloor\]</span></p>
-<p>其中，<span class="math inline">\(S\)</span> 用于缩放，<span
-class="math inline">\(Z\)</span> 用于确定零点。我们需要做的就是确定
-<span class="math inline">\(S,Z\)</span>。 可以看出来，在量化的计算中
-<span class="math inline">\(r_{range}=r_{max}-r_{min}\)</span>
-是至关重要的，量化的结果也是 range 敏感的。
-在下面论文的讲解中我们也会用到这点。</p>
-<p>模型量化的对象主要有 Weight, Activation, KV cache,
-Gradients。(量化的不仅是参数，还有运算)</p>
-<h3 id="dequantization">Dequantization:</h3>
-<p>模型中一些算子支持低精度表示，那么很好，直接算就行了。</p>
-<p>但还有一些算子需要高精度的输入输出（低精度导致很大的误差），就需要将
-INT8 反量化为 FP32 再喂给算子计算。</p>
-<p><span class="math display">\[r=S(q-Z)\]</span></p>
-<p>这会引入误差。</p>
-<h3
-id="ptqpost-training-quatization">PTQ(Post-training-quatization)</h3>
-<p>PTQ，即训练后量化，在模型完成训练之后对模型进行量化。</p>
-<p>之前说过，量化需要确定 <span class="math inline">\(S,Z\)</span>，而
-<span class="math inline">\(S,Z\)</span> 又由 <span
-class="math inline">\(r_{max},r_{min}\)</span> 确定，PTQ
-通过选取少量校准数据估算出参数分布，来得到 <span
-class="math inline">\(r_{max},r_{min}\)</span>。</p>
-<p>以 FP32-&gt;INT8 的 PTQ 为例： 1. 训练出 FP32 的 baseline 模型。 2.
-Calibration：使用少量数据估算得到网络各层 weight/activation 的分布，得到
-<span class="math inline">\(r_{max},r_{min}\)</span> 3. 算出各层的 <span
-class="math inline">\(S,Z\)</span>。 4. 用 <span
-class="math inline">\(S,Z\)</span>，将 FP32 的 baseline 量化得到
-INT8。</p>
-<p>PTQ 运算速度较快，但会损失一定精度。</p>
-<h3
-id="qatquantization-aware-training">QAT(Quantization-aware-training)</h3>
-<p>QAT，即量化感知训练。PTQ 中训练与量化是分开的，但是 QAT
-通过在训练时加入伪量化算子，模拟量化带来的误差。</p>
-<p>以 FP32-&gt;INT8 的 QAT 为例： 1. 训练出 FP32 的 baseline 模型。 2.
-在 baseline model 中加入插入伪量化算子，在数据集上 finetune 得到的 QAT
-model。 3. 伪量化算子模拟推理时的量化，并保存 finetune
-时得到的量化参数。 4. finetune 完成后，使用量化参数将 QAT model 量化为
-INT8 model。</p>
-<p>伪量化算子就是量化与反量化算子的结合，模拟 round
-带来的误差，定义如下，</p>
-<p><span class="math display">\[clamp(r;a,b)=min(max(x,a),b)\]</span>
-<span class="math display">\[s(a,b,n)=\frac{b-a}{n-1}\]</span> <span
-class="math display">\[q(r;a,b,n)=\lfloor\frac{clamp(r;a,b)-a}{s(a,b,n)}\rfloor
-s(a,b,n)+a\]</span></p>
-<h2 id="challenge-and-motivation">Challenge and Motivation</h2>
-<p>随着大模型的规模急剧增加，大模型的推理面对着两个问题，极高 GPU
-内存占用和计算开销。</p>
-<p>而解决这一问题的办法之一就是量化。其一可以降低模型的内存占用，其二可以提升模型的运算性能。</p>
-<p>然而，为了弥补量化导致的精度损失，通常需要使用 QAT 技术，retrain
-模型。这会带来几个问题：</p>
-<ol type="1">
-<li>训练用的数据往往不是公开的。</li>
-<li>重新训练模型所需要很多计算资源。</li>
-<li>耗时很久。</li>
-</ol>
-<p>PTQ 技术就能解决这些问题，因为 PTQ</p>
-<ol type="1">
-<li>不需要训练数据。</li>
-<li>极少的计算资源。</li>
-<li>几乎不需要重新训练。</li>
-</ol>
-<p>最近也有一些关于 PTQ 的量化工作，但是这些工作</p>
-<ol type="1">
-<li>只关注小规模的 CV 问题。</li>
-<li>只局限于高精度量化（INT8/FP16），且只支持 BERT 模型。</li>
-<li>不关注量化和反量化开销。（这是性能的重要组成部分）</li>
-<li>对于极端量化（如
-INT4）或更高的精度，通常使用知识蒸馏，导致额外的开销。</li>
-</ol>
-<p>我们想要使用 PTQ 技术来解决上述问题，但是直接使用 PTQ
-技术是不可行的，会导致 accuracy 的下降。 如图所示，图中 WXAY 代表 Weight
-和 Activation 的量化精度。</p>
-<img src="/2024/05/15/ZeroQuant/f2.png" class="">
-<p>可以看到，INT8 激活量化带来了主要的精度损失，而 weight
-量化会导致生成式任务的性能变差。（但 zero-shot 对此不敏感）</p>
-<p>为什么 INT8 量化会导致精度损失呢？</p>
-<ol type="1">
-<li>激活层的 range 是动态变化的，左图显示了对不同 token
-而言，激活层输出的 range 有非常大的差异。譬如说 layer11，最小的 range 为
-8，最大的 range 为 35。如果对所有 token 使用相同的量化范围的话，range
-较小的 token 就会损失很多精度。</li>
-<li>Weight 中不同行的 range 差距极大。如右图所示，不同行的 range
-之间最多有十倍的差距，但是 PTQ 对整个 Weight Matrix
-是一起量化的，取的是整个 Weight 的范围。导致 PTQ 的性能较差。如果使用
-INT4 量化（总共 16 个数），那对于 range 较小的行，可能只有 2-3
-个数的表示范围。</li>
-</ol>
-<img src="/2024/05/15/ZeroQuant/f1.png" class="">
-<h2 id="methodology">Methodology</h2>
-<p>为此，Paper 提出了以下几个技术：</p>
-<h3 id="group-wise-quantization-for-weights">Group-wise Quantization for
-Weights：</h3>
-<ol type="1">
-<li>将权重矩阵划分为多个组，每个组分别量化。</li>
-<li>针对 GPU 做了优化，降低了推理延迟。</li>
-</ol>
-<img src="/2024/05/15/ZeroQuant/f4.png" class="">
-<h3 id="token-wise-quantization-for-activations">Token-wise Quantization
-for Activations</h3>
-<ol type="1">
-<li>PTQ
-一般是静态量化激活的。譬如说离线校准时计算出激活层范围。但是，对于大模型而言，不同
-token 的激活范围差异极大，统一静态的量化会导致极大的精度损失。</li>
-<li>自然的想法是使用更细粒度的量化策略。这篇 paper 提出了逐 token
-量化的技术，动态计算每个 token 的激活值范围，再做量化。</li>
-<li>消除了激活范围校准的开销。</li>
-<li>但是，逐 token 量化会引入显著的量化和反量化成本，为此，paper
-设计了一个高度优化的推理后端。</li>
-</ol>
-<h3
-id="quantization-optimized-transformer-kernels">Quantization-Optimized
-Transformer Kernels</h3>
-<ol type="1">
-<li>在推理过程中，batch-size 较小，因此推理的延迟主要是 device 和 host
-之间的内存搬运导致的。</li>
-<li>量化本身降低了模型的大小，减少了加载的数据量。但是，量化和反量化运算又导致了额外的开销。</li>
-<li>使用 CUTLASS INT8 GeMM（通用矩阵乘）。适配 INT8 计算和 kernel
-fuse。</li>
-<li>Fusing Token-wise Activation Quantization。使用 kernel fuse 技术，将
-Activation 的量化操作与之前的运算融合为一个运算，将反量化与 GeMM
-融合为一个运算，由于融合的运算使用的是相同的数据，因此规避了量化/反量化带来的额外内存搬运开销。</li>
-</ol>
-<img src="/2024/05/15/ZeroQuant/f3.png" class="">
-<h3 id="layer-by-layer-knowledge-distillation-lkd">Layer-by-layer
-knowledge distillation (LKD)</h3>
-<ol type="1">
-<li>知识蒸馏可以有效降低量化导致的精度损失。</li>
-<li>但是，知识蒸馏会极大增加内存和计算成本，而且往往需要原始训练数据（经常拿不到）。</li>
-</ol>
-<p>所以，paper 提出了逐层蒸馏技术。假设目标模型有 <span
-class="math inline">\(N\)</span> 个 transformer 块 <span
-class="math inline">\(L_1,L_2,\dots L_N\)</span>，数据集为 <span
-class="math inline">\((X,Y)\)</span>，可以是原始训练数据，也可以来自其他地方。</p>
-<p>LKD 使用未量化的模型作为教师模型。若 <span
-class="math inline">\(L_k\)</span> 被量化，其量化后的版本为 <span
-class="math inline">\(\hat{L_k}\)</span>。那么用 <span
-class="math inline">\(L_{k-1}\)</span> 的输出来作为 <span
-class="math inline">\(L_k,\hat{L_k}\)</span>的输入，度量学生模型和教师模型的差距，然后更新
-<span class="math inline">\(L_k\)</span>。具体就像这个公式一样。</p>
-<p><span
-class="math display">\[\mathcal{L}_{LKD,k}=MSE(L_k(L_{k-1}(...L_1(X)...))-\hat{L_k}(L_{k-1}(...L_1(X)...)))\]</span></p>
-<p>这么做带来了以下好处：</p>
-<ol type="1">
-<li>LKD 不需要额外的教师模型，而且学生和教师模型共享
-L1-Lk-1，其运算结果在之前的迭代中以及知道了，所以额外的运算成本只有
-Lk（类似动态规划）。</li>
-<li>唯一需要 optimize 的层是 Lk，所以只要将 Lk 加载进内存。</li>
-<li>LKD 是逐层优化的，并不优化端到端的模型，所以 LKD
-不依赖于原始数据。</li>
-</ol>
-<h2 id="results">Results</h2>
-<ul>
-<li>ZeroQuant 可以将 BERT 和 类GPT-3 等模型的权重和激活精度降低到
-INT8，对模型准确率的影响最小，同时，与 FP16
-推理相比，这些模型的推理速度提高了 5.19 倍/4.16 倍；</li>
-<li>ZeroQuant 加上 LKD 可将全连接模块中的权重量化为
-INT4，以及注意力模块中的INT8权重和INT8激活，与FP16模型相比，内存占用减少了3倍；</li>
-<li>ZeroQuant可以直接应用于GPT-J和GPT-NeoX等，其中我们的INT8模型达到了与FP16模型相似的精度，但效率提高了5.2倍。</li>
-</ul>
-]]></content>
-      <categories>
-        <category>Paper Reading</category>
-      </categories>
-      <tags>
-        <tag>MLSys</tag>
-        <tag>LLM</tag>
-        <tag>Quantization</tag>
       </tags>
   </entry>
 </search>
