@@ -324,6 +324,7 @@ class="math display">\[\mathcal{L}=\mathcal{L}_{lable}+\lambda
 <li>Distilling Step-by-Step! Outperforming Larger Language Models with
 Less Training Data and Smaller Model Sizes, <span class="exturl" data-url="aHR0cHM6Ly9hcnhpdi5vcmcvYWJzLzIzMDUuMDIzMDE=">https://arxiv.org/abs/2305.02301<i class="fa fa-external-link-alt"></i></span>.</li>
 <li>A Survey on Knowledge Distillation of Large Language Model, <span class="exturl" data-url="aHR0cHM6Ly9hcnhpdi5vcmcvYWJzLzI0MDIuMTMxMTY=">https://arxiv.org/abs/2402.13116<i class="fa fa-external-link-alt"></i></span>.</li>
+<li>A Survey on Model Compression for Large Language Models, <span class="exturl" data-url="aHR0cHM6Ly9hcnhpdi5vcmcvYWJzLzIzMDguMDc2MzM=">https://arxiv.org/abs/2308.07633<i class="fa fa-external-link-alt"></i></span>.</li>
 <li>一文读懂：大模型思维链 CoT（Chain of Thought）, <span class="exturl" data-url="aHR0cHM6Ly96aHVhbmxhbi56aGlodS5jb20vcC82NzA5MDc2ODU=">https://zhuanlan.zhihu.com/p/670907685<i class="fa fa-external-link-alt"></i></span>.</li>
 <li>知识蒸馏：原理、算法、应用, <span class="exturl" data-url="aHR0cHM6Ly96aHVhbmxhbi56aGlodS5jb20vcC82MzcxMDg2MTc=">https://zhuanlan.zhihu.com/p/637108617<i class="fa fa-external-link-alt"></i></span>.</li>
 <li>论文笔记（LLM+蒸馏）：Distilling step-by-step+代码分析, <span class="exturl" data-url="aHR0cHM6Ly96aHVhbmxhbi56aGlodS5jb20vcC82NDIzMDAwNzI=">https://zhuanlan.zhihu.com/p/642300072<i class="fa fa-external-link-alt"></i></span>.</li>
@@ -337,6 +338,199 @@ Less Training Data and Smaller Model Sizes, <span class="exturl" data-url="aHR0c
         <tag>MLSys</tag>
         <tag>LLM</tag>
         <tag>Knowledge Distilation</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>LLM-Pruner</title>
+    <url>/2024/05/20/LLM-Pruner/</url>
+    <content><![CDATA[<h2 id="background-knowledge">Background Knowledge</h2>
+<p>Pruning, 剪枝，顾名思义，就是移除大模型中不必要的参数或组件。</p>
+<p>我觉得这种思想基于的假设是：不相信大模型中各参数都是独立同分布的，大模型应当是高维空间中的某种低维的流形，那么理论上大模型就不需要这么高维的表示。这也类似于传统深度学习中的
+bottleneck 思想。</p>
+<p>当前的大模型剪枝方式主要可以分为两种，非结构化剪枝和结构化剪枝。</p>
+<ul>
+<li>Unstructured Pruning: 非结构化剪枝的粒度是模型的参数。一般是通过
+Mask
+将重要性低于阈值的参数置零，得到不规则的稀疏结构。这种方式并不改变模型的结构，所以对性能的影响较小，但是正因如此，剪枝后的模型参数并没有减少，要体现剪枝的效果，必须依赖于专门针对稀疏结构的压缩技术和硬件，普适性较低。另外，模型的内存使用还是较高的。</li>
+<li>Structured Pruning:
+结构化剪枝的粒度是模型的子结构。它会在不改变模型宏观结构的前提下，利用某种规则物理地移除网络中的子结构。这样做的好处是真的降低了模型的参数数量，而且不再依赖于特定的硬件。但因为粒度较粗，当剪枝比例提升时，会导致模型性能下降较快。</li>
+</ul>
+<img src="/2024/05/20/LLM-Pruner/p0.png" class="">
+<p>接下来要介绍的这篇文章使用的是结构化的剪枝。</p>
+<h2 id="challenges">Challenges</h2>
+<p>大模型的压缩主要有以下挑战：</p>
+<ol type="1">
+<li>模型规模越来越大，导致很多需要训练的压缩方案，比如知识蒸馏，变得很困难。</li>
+<li>训练语料的限制，一方面，模型的原始训练语料一般不公开，另一方面，海量的训练语料需要高昂的收集成本，几乎是不可得的。</li>
+<li>现有的大模型压缩算法往往针对单一、特定的任务，这导致大模型丢失了极为宝贵的处理通用任务的能力。</li>
+</ol>
+<h2 id="motivation">Motivation</h2>
+<p>因此，我们需要一种压缩方式，它无需大规模的训练，且能够维持大模型处理通用任务的能力。目前比较可行的方案是量化和剪枝，这两种方案的组合也确实能取得更好的模型压缩效果。这篇
+paper 提出了一种结构化剪枝方法，能够实现以下这些目标：</p>
+<ol type="1">
+<li>压缩后的模型仍然能够处理通用任务。</li>
+<li>只需要约 50k 的公开语料，用于压缩后调优训练。</li>
+<li>较快的压缩效率，剪枝只需要 3 分钟，压缩后调优训练也只需要 3
+小时。</li>
+<li>能够自动完成剪枝，无需人工指导。</li>
+<li>不需要像非结构化剪枝那样，依赖于特定的硬件。</li>
+</ol>
+<img src="/2024/05/20/LLM-Pruner/intro.png" class="">
+<h2 id="methods">Methods</h2>
+<h3 id="discover-all-coupled-structure-in-llms">Discover All Coupled
+Structure in LLMs</h3>
+<p>因为不同模型子结构之间是有着依赖关系的，不能简单的移除某些子结构就算了，这会导致模型的正确性出问题。</p>
+<p>假设 <span class="math inline">\(N_i,N_j\)</span>
+为模型中的两个神经元，<span
+class="math inline">\(In(N_i),Out(N_i)\)</span> 表示 <span
+class="math inline">\(N_i\)</span> 输入输出所指向的所有神经元，<span
+class="math inline">\(Deg^-(N_i),Deg^+(N_i)\)</span> 分别表示神经元
+<span class="math inline">\(N_i\)</span> 的入度和出度。</p>
+<p>我们如下定义子结构之间的依赖。</p>
+<p>第一种依赖是神经元 <span class="math inline">\(N_j\)</span>
+的输入只有 <span class="math inline">\(N_i\)</span>。</p>
+<p><span class="math display">\[N_j \in Out(N_i) \wedge Deg^-(N_j)=1
+\Rightarrow N_j \text{ is dependent on }N_i\]</span></p>
+<pre class="mermaid">flowchart LR
+    i((i)) --> j((j))
+    i((i)) --> k((k))
+    l((l)) --> k((k))</pre>
+<p>第二种依赖是神经元 <span class="math inline">\(N_i\)</span>
+的输出只导向 <span class="math inline">\(N_j\)</span>。</p>
+<p><span class="math display">\[N_i \in In(N_j) \wedge Deg^+(N_i)=1
+\Rightarrow N_i \text{ is dependent on }N_j\]</span></p>
+<pre class="mermaid">flowchart LR
+    i((i)) --> j((j))
+    l((l)) --> j((j))
+    l((l)) --> k((k))</pre>
+<p>如果某个神经元仅依赖于另一个神经元，而且所依赖的那个神经元被剪枝了，那么这个神经元本身也要被剪枝。</p>
+<p>通过识别神经元之间的依赖关系，我们可以构建一个依赖关系图，然后据此找到模型中耦合的结构，称为组，以组为单位进行剪枝。</p>
+<p>以 LLaMA 为例，如图所示，主要存在三种耦合的可能 1. MLP 内部的耦合。
+2. Multi-head Attention（多头注意力）内部的耦合。 3.
+整个网络中的维度耦合。</p>
+<img src="/2024/05/20/LLM-Pruner/group.png" class="">
+<h2 id="grouped-importance-estimation">Grouped Importance
+Estimation</h2>
+<p>剪枝需要度量参数的重要性，然后才能去除不太重要的参数。</p>
+<p>因为之前已经做过模型的依赖分析了，所以我们以组为单位评估重要性，而非以单个的神经元结构。</p>
+<p>主要有两种度量方式。</p>
+<h3 id="vector-wise-importance">Vector-wise Importance</h3>
+<p>第一，是以整个参数矩阵为单位，评估其重要性。</p>
+<p>我们定义数据集 <span
+class="math inline">\(D=\{x_i,y_i\}_{i=1}^N\)</span>，在实验中使用 10
+个样本就够了，这些样本主要来自于公共数据集。</p>
+<p>一个组被定义为 <span
+class="math inline">\(\mathcal{G}=\{W_i\}_{i=1}^M\)</span>,<span
+class="math inline">\(W_i\)</span> 是单个结构的参数，<span
+class="math inline">\(H\)</span> 是 Hessian 矩阵。</p>
+<p>那么一个参数矩阵的重要性，就可以度量为该矩阵起作用或不起作用对模型性能的影响，也就是模型的
+Loss 与将模型中该参数矩阵置零的 Loss 之差。</p>
+<p><span class="math display">\[I_{W_i} = | \Delta
+\mathcal{L}(\mathcal{D})| = |\mathcal{L}_{W_i}(\mathcal{D}) -
+\mathcal{L}_{W_i=0}(\mathcal{D})| =| \underbrace{\frac{\partial
+\mathcal{L}^{\top}(\mathcal{D})}{\partial W_i} W_i}_{\neq 0}-\frac{1}{2}
+{W_i}^{\top} H W_i + \mathcal{O}\left(\| W_i \|^3\right) | \]</span></p>
+<p>此处还有一些小细节。 1.
+因为使用的数据并不来源于模型的原始数据，所以模型在数据集上并未收敛，重要性的第一项不为零，使得可以较好地度量参数矩阵的重要性。
+2. Hessian 矩阵的计算复杂度过高，所以只计算了对角线上的元素。</p>
+<h3 id="element-wise-importance">Element-wise Importance</h3>
+<p>除此之外，还可以度量更细粒度的重要性，比如单个参数的重要性。</p>
+<p>其中 <span class="math inline">\(W_i^k\)</span> 代表参数矩阵中的第
+<span class="math inline">\(k\)</span> 个参数，<span
+class="math inline">\(H_{kk}\)</span> 是 Hessian
+矩阵。计算重要性的思路跟前面讲的是一样的。</p>
+<p><span class="math display">\[I_{W_i^k} = | \Delta
+\mathcal{L}(\mathcal{D})| = |\mathcal{L}_{W_i^k}(\mathcal{D}) -
+\mathcal{L}_{W_i^k=0}(\mathcal{D})| = | \frac{\partial
+\mathcal{L}(\mathcal{D})}{\partial W_i^k} W_i^k-\frac{1}{2} {W_i^k}
+H_{kk} W_i^k + \mathcal{O}\left(\| W_i^k \|^3\right) |\]</span></p>
+<p>另外，还可以通过 Fisher Information Matrix 来近似 <span
+class="math inline">\(H_{kk}\)</span> 的对角线，就不过多赘述了。</p>
+<p><span class="math display">\[I_{W_i^k} = |
+\mathcal{L}_{W_i^k}(\mathcal{D}) - \mathcal{L}_{W_i^k=0}(\mathcal{D})|
+\approx | \frac{\partial \mathcal{L}(\mathcal{D})}{\partial W_i^k}
+W_i^k-\frac{1}{2} \sum_{j=1}^N \left(\frac{\partial
+\mathcal{L}(\mathcal{D}_j)}{\partial W_i^k} W_i^k\right)^2 +
+\mathcal{O}\left(\| W_i^k \|^3\right) |\]</span></p>
+<h3 id="group-importance">Group Importance</h3>
+<p>拥有了上面的信息，我们就可以度量整个组的重要性了，文中给出了四种不同的方法，分别对应了不同的预设。</p>
+<ol type="1">
+<li>Summation(求和): <span class="math inline">\(I_{\mathcal{G}} =
+\sum_{i=1}^{M}I_{W_i}\)</span> or <span
+class="math inline">\(I_{\mathcal{G}} = \sum_{i=1}^{M}\sum_k
+I_{W_i^k}\)</span>，认为不同参数的重要性的独立可叠加的。</li>
+<li>Production(乘积): <span class="math inline">\(I_{\mathcal{G}} =
+\prod_{i=1}^{M}I_{W_i}\)</span> or <span
+class="math inline">\(I_{\mathcal{G}} = \prod_{i=1}^{M}\sum_k
+I_{W_i^k}\)</span>，认为不同层的重要性会互相影响。</li>
+<li>Max(最大值): <span class="math inline">\(I_{\mathcal{G}} =
+\max_{i=1}^{M}I_{W_i}\)</span> or <span
+class="math inline">\(I_{\mathcal{G}} = \max_{i=1}^{M}\sum_k
+I_{W_i^k}\)</span>，认为组的重要性由其中一层主导。</li>
+<li>Last-Only: <span class="math inline">\(I_{\mathcal{G}} =
+I_{W_l}\)</span> or <span class="math inline">\(I_{\mathcal{G}} = \sum_k
+I_{W_l^k}\)</span>, <span class="math inline">\(l\)</span>
+是最后一层。认为组内的最后一层主导了整层的重要性，因为只有最后一层才会对后面的层产生影响。</li>
+</ol>
+<p>我们可以更具不同的预设，使用不同的重要性度量方式，然后设置阈值，进行粒度为组的剪枝。</p>
+<h2 id="fast-recovery-with-lora">Fast Recovery with LoRA</h2>
+<p>在完成剪枝之后，需要对模型进行恢复训练，以提高模型的精度。这需要使用尽可能少的数据，并且尽可能地快，因此训练时需要使用尽可能少的模型参数。LoRA
+正好能解决这一问题。</p>
+<p>我们快速地过一遍 LoRA。</p>
+<p>在 finetune 模型时，我们实际学习到的东西是 <span
+class="math inline">\(\Delta W\)</span>。与 <span
+class="math inline">\(W_0\)</span> 相比，<span
+class="math inline">\(\Delta W\)</span>
+并没有那么稠密的信息，所以我们可以假定 <span
+class="math inline">\(\Delta W\)</span>
+有低得多的内在维度，可以放心地进行降维。</p>
+<p>因此，我们可以将矩阵 <span class="math inline">\(\Delta W\)</span>
+拆解为 <span class="math inline">\(BA\)</span>，其中</p>
+<p><span class="math display">\[ B\in \mathbb{R}^{d\times r}, A\in
+\mathbb{R}^{r\times k},W\in \mathbb{R}^{d\times k}\]</span> <span
+class="math display">\[r \ll min(d,k)\]</span></p>
+<p>在训练时，将 <span class="math inline">\(W_0\)</span> 冻住，只计算
+<span class="math inline">\(\Delta W=BA\)</span> 的梯度更新。</p>
+<p><span class="math display">\[W_{finetuned}=W_0+\Delta
+W=W_0+BA\]</span></p>
+<img src="/2024/05/20/LLM-Pruner/lora.png" class="">
+<p>因此，在训练时，我们可以只处理比原始大模型小得多的参数量，极大地提升了训练的速度。</p>
+<p>现在，回到 LLM-Pruner。对于每一个可以训练的参数矩阵，我们都进行 LoRA
+finetune，以帮助模型恢复到剪枝前的水平。</p>
+<p><span class="math display">\[f(x) = (W+\Delta W)X + b = (WX + b) +
+(PQ)X\]</span></p>
+<h2 id="results">Results</h2>
+<p>这篇文章对 LLaMA-7B, Vicuna-7B 和 ChatGLM
+三种开源的大模型做了实验，得到了以下这些结论。</p>
+<p>第一，剪枝降低了模型的参数量，提升了推理的速度。LLaMA-7B 原本只能在
+24GB 的单卡上进行推理，剪枝后能 finetune 了。（表中的 Channel 和 Block
+可以参照之前依赖计算时的分组策略）</p>
+<img src="/2024/05/20/LLM-Pruner/res1.png" class="">
+<p>第二，剪枝后模型仍然具备 Zero-shot 能力，能够处理通用的任务。</p>
+<img src="/2024/05/20/LLM-Pruner/res2.png" class="">
+<p>第三，相比与其他剪枝方法，比如 L2，LLM-Pruner
+剪枝后的模型的性能更好。但是，当剪枝的比例增加时，还是会出现困惑度激增的情况，这有待研究。</p>
+<img src="/2024/05/20/LLM-Pruner/res3.png" class="">
+<p>第四，通过一些例子，我们可以看到，剪枝后的模型仍然能够生成高质量的文本。</p>
+<img src="/2024/05/20/LLM-Pruner/res4.png" class="">
+<h2 id="reference">Reference</h2>
+<ol type="1">
+<li>LLM-Pruner:On the Structural Pruning of Large Language Models, <span class="exturl" data-url="aHR0cHM6Ly9hcnhpdi5vcmcvYWJzLzIzMDUuMTE2Mjc=">https://arxiv.org/abs/2305.11627<i class="fa fa-external-link-alt"></i></span>.</li>
+<li>LLM-Pruner Vedio&amp;Slides, <span class="exturl" data-url="aHR0cHM6Ly9zbGlkZXNsaXZlLmNvbS8zOTAwOTY3Ny9sbG1wcnVuZXItb24tdGhlLXN0cnVjdHVyYWwtcHJ1bmluZy1vZi1sYXJnZS1sYW5ndWFnZS1tb2RlbHM=">https://slideslive.com/39009677/llmpruner-on-the-structural-pruning-of-large-language-models<i class="fa fa-external-link-alt"></i></span>.</li>
+<li>A Survey on Model Compression for Large Language Models, <span class="exturl" data-url="aHR0cHM6Ly9hcnhpdi5vcmcvYWJzLzIzMDguMDc2MzM=">https://arxiv.org/abs/2308.07633<i class="fa fa-external-link-alt"></i></span>.</li>
+<li>LoRA: Low-Rank Adaptation of Large Language Models, <span class="exturl" data-url="aHR0cHM6Ly9hcnhpdi5vcmcvYWJzLzIxMDYuMDk2ODU=">https://arxiv.org/abs/2106.09685<i class="fa fa-external-link-alt"></i></span>.</li>
+<li>大模型剪枝概述, <span class="exturl" data-url="aHR0cHM6Ly96aHVhbmxhbi56aGlodS5jb20vcC82OTExNjA5MTc=">https://zhuanlan.zhihu.com/p/691160917<i class="fa fa-external-link-alt"></i></span>.</li>
+<li>LLM-Pruner: 大语言模型的结构化剪枝, <span class="exturl" data-url="aHR0cHM6Ly96aHVhbmxhbi56aGlodS5jb20vcC82MzA5MDIwMTI=">https://zhuanlan.zhihu.com/p/630902012<i class="fa fa-external-link-alt"></i></span>.</li>
+</ol>
+]]></content>
+      <categories>
+        <category>Paper Reading</category>
+      </categories>
+      <tags>
+        <tag>MLSys</tag>
+        <tag>LLM</tag>
+        <tag>Pruning</tag>
+        <tag>Structure Pruning</tag>
       </tags>
   </entry>
   <entry>
@@ -1078,6 +1272,7 @@ INT4，以及注意力模块中的INT8权重和INT8激活，与FP16模型相比�
 <li>ZeroQuant: Efficient and Affordable Post-Training Quantization for
 Large-Scale Transformers, <span class="exturl" data-url="aHR0cHM6Ly9hcnhpdi5vcmcvYWJzLzIyMDYuMDE4NjE=">https://arxiv.org/abs/2206.01861<i class="fa fa-external-link-alt"></i></span>.</li>
 <li>ZeroQuant vedio&amp;slides, <span class="exturl" data-url="aHR0cHM6Ly9zbGlkZXNsaXZlLmNvbS8zODk5MTQ4NC96ZXJvcXVhbnQtZWZmaWNpZW50LWFuZC1hZmZvcmRhYmxlLXBvc3R0cmFpbmluZy1xdWFudGl6YXRpb24tZm9yLWxhcmdlc2NhbGUtdHJhbnNmb3JtZXJz">https://slideslive.com/38991484/zeroquant-efficient-and-affordable-posttraining-quantization-for-largescale-transformers<i class="fa fa-external-link-alt"></i></span>.</li>
+<li>A Survey on Model Compression for Large Language Models, <span class="exturl" data-url="aHR0cHM6Ly9hcnhpdi5vcmcvYWJzLzIzMDguMDc2MzM=">https://arxiv.org/abs/2308.07633<i class="fa fa-external-link-alt"></i></span>.</li>
 <li>大模型压缩首篇综述来啦~, <span class="exturl" data-url="aHR0cHM6Ly96aHVhbmxhbi56aGlodS5jb20vcC82NTI0MzQxNjU=">https://zhuanlan.zhihu.com/p/652434165<i class="fa fa-external-link-alt"></i></span>.</li>
 <li>量化感知训练（Quantization-aware-training）探索-从原理到实践, <span class="exturl" data-url="aHR0cHM6Ly96aHVhbmxhbi56aGlodS5jb20vcC81NDgxNzQ0MTY=">https://zhuanlan.zhihu.com/p/548174416<i class="fa fa-external-link-alt"></i></span>.</li>
 <li>目前针对大模型进行量化的方法有哪些？, <span class="exturl" data-url="aHR0cHM6Ly93d3cuemhpaHUuY29tL3F1ZXN0aW9uLzYyNzQ4NDczMi9hbnN3ZXIvMzI2MTY3MTQ3OA==">https://www.zhihu.com/question/627484732/answer/3261671478<i class="fa fa-external-link-alt"></i></span>.</li>

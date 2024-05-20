@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+  <meta name="google-site-verification" content="deuDv-EAk16ZxOmNULcCaGJT7A3rePc-Xmn__lwF9kc">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha256-XOqroi11tY4EFQMR9ZYwZWKj5ZXiftSx36RRuC3anlA=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"novapigeon.github.io","root":"/","images":"/images","scheme":"Gemini","darkmode":false,"version":"8.20.0","exturl":true,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"copycode":{"enable":true,"style":"mac"},"fold":{"enable":true,"height":500},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":true,"comments":{"style":"tabs","active":"giscus","storage":true,"lazyload":true,"nav":null,"activeClass":"giscus"},"stickytabs":true,"motion":{"enable":true,"async":false,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"搜索...","empty":"没有找到任何搜索结果：${query}","hits_time":"找到 ${hits} 个搜索结果（用时 ${time} 毫秒）","hits":"找到 ${hits} 个搜索结果"},"path":"/search.xml","localsearch":{"enable":true,"trigger":"auto","top_n_per_article":-1,"unescape":true,"preload":true}}</script><script src="/js/config.js"></script>
+
+    <meta name="description" content="On the Structural Pruning of Large Language Models.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="LLM-Pruner">
+<meta property="og:url" content="https://novapigeon.github.io/2024/05/20/LLM-Pruner/index.html">
+<meta property="og:site_name" content="NovaPigeon&#39;s Blog">
+<meta property="og:description" content="On the Structural Pruning of Large Language Models.">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://novapigeon.github.io/2024/05/20/LLM-Pruner/p0.png">
+<meta property="og:image" content="https://novapigeon.github.io/2024/05/20/LLM-Pruner/intro.png">
+<meta property="og:image" content="https://novapigeon.github.io/2024/05/20/LLM-Pruner/group.png">
+<meta property="og:image" content="https://novapigeon.github.io/2024/05/20/LLM-Pruner/lora.png">
+<meta property="og:image" content="https://novapigeon.github.io/2024/05/20/LLM-Pruner/res1.png">
+<meta property="og:image" content="https://novapigeon.github.io/2024/05/20/LLM-Pruner/res2.png">
+<meta property="og:image" content="https://novapigeon.github.io/2024/05/20/LLM-Pruner/res3.png">
+<meta property="og:image" content="https://novapigeon.github.io/2024/05/20/LLM-Pruner/res4.png">
+<meta property="article:published_time" content="2024-05-20T11:06:33.000Z">
+<meta property="article:modified_time" content="2024-05-20T20:58:05.214Z">
+<meta property="article:author" content="NovaPigeon">
+<meta property="article:tag" content="MLSys">
+<meta property="article:tag" content="LLM">
+<meta property="article:tag" content="Pruning">
+<meta property="article:tag" content="Structure Pruning">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://novapigeon.github.io/2024/05/20/LLM-Pruner/p0.png">
+
+
+<link rel="canonical" href="https://novapigeon.github.io/2024/05/20/LLM-Pruner/">
+
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh-CN","comments":true,"permalink":"https://novapigeon.github.io/2024/05/20/LLM-Pruner/","path":"2024/05/20/LLM-Pruner/","title":"LLM-Pruner"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>LLM-Pruner | NovaPigeon's Blog</title>
+  
+
+
+
+
+
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">NovaPigeon's Blog</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">代大匠斫者</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="搜索" role="button">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a></li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup"><div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off" maxlength="80"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close" role="button">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div class="search-result-container no-result">
+  <div class="search-result-icon">
+    <i class="fa fa-spinner fa-pulse fa-5x"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#background-knowledge"><span class="nav-number">1.</span> <span class="nav-text">Background Knowledge</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#challenges"><span class="nav-number">2.</span> <span class="nav-text">Challenges</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#motivation"><span class="nav-number">3.</span> <span class="nav-text">Motivation</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#methods"><span class="nav-number">4.</span> <span class="nav-text">Methods</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#discover-all-coupled-structure-in-llms"><span class="nav-number">4.1.</span> <span class="nav-text">Discover All Coupled
+Structure in LLMs</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#grouped-importance-estimation"><span class="nav-number">5.</span> <span class="nav-text">Grouped Importance
+Estimation</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#vector-wise-importance"><span class="nav-number">5.1.</span> <span class="nav-text">Vector-wise Importance</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#element-wise-importance"><span class="nav-number">5.2.</span> <span class="nav-text">Element-wise Importance</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#group-importance"><span class="nav-number">5.3.</span> <span class="nav-text">Group Importance</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#fast-recovery-with-lora"><span class="nav-number">6.</span> <span class="nav-text">Fast Recovery with LoRA</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#results"><span class="nav-number">7.</span> <span class="nav-text">Results</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#reference"><span class="nav-number">8.</span> <span class="nav-text">Reference</span></a></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="NovaPigeon"
+      src="/images/avator.jpg">
+  <p class="site-author-name" itemprop="name">NovaPigeon</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">6</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">1</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">10</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://novapigeon.github.io/2024/05/20/LLM-Pruner/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avator.jpg">
+      <meta itemprop="name" content="NovaPigeon">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="NovaPigeon's Blog">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="LLM-Pruner | NovaPigeon's Blog">
+      <meta itemprop="description" content="On the Structural Pruning of Large Language Models.">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          LLM-Pruner
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+
+      <time title="创建时间：2024-05-20 19:06:33" itemprop="dateCreated datePublished" datetime="2024-05-20T19:06:33+08:00">2024-05-20</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">更新于</span>
+      <time title="修改时间：2024-05-21 04:58:05" itemprop="dateModified" datetime="2024-05-21T04:58:05+08:00">2024-05-21</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">分类于</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Paper-Reading/" itemprop="url" rel="index"><span itemprop="name">Paper Reading</span></a>
+        </span>
+    </span>
+
+  
+    <span class="post-meta-item" title="阅读次数" id="busuanzi_container_page_pv">
+      <span class="post-meta-item-icon">
+        <i class="far fa-eye"></i>
+      </span>
+      <span class="post-meta-item-text">阅读次数：</span>
+      <span id="busuanzi_value_page_pv"></span>
+    </span>
+</div>
+
+            <div class="post-description">On the Structural Pruning of Large Language Models.</div>
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><h2 id="background-knowledge">Background Knowledge</h2>
+<p>Pruning, 剪枝，顾名思义，就是移除大模型中不必要的参数或组件。</p>
+<p>我觉得这种思想基于的假设是：不相信大模型中各参数都是独立同分布的，大模型应当是高维空间中的某种低维的流形，那么理论上大模型就不需要这么高维的表示。这也类似于传统深度学习中的
+bottleneck 思想。</p>
+<p>当前的大模型剪枝方式主要可以分为两种，非结构化剪枝和结构化剪枝。</p>
+<ul>
+<li>Unstructured Pruning: 非结构化剪枝的粒度是模型的参数。一般是通过
+Mask
+将重要性低于阈值的参数置零，得到不规则的稀疏结构。这种方式并不改变模型的结构，所以对性能的影响较小，但是正因如此，剪枝后的模型参数并没有减少，要体现剪枝的效果，必须依赖于专门针对稀疏结构的压缩技术和硬件，普适性较低。另外，模型的内存使用还是较高的。</li>
+<li>Structured Pruning:
+结构化剪枝的粒度是模型的子结构。它会在不改变模型宏观结构的前提下，利用某种规则物理地移除网络中的子结构。这样做的好处是真的降低了模型的参数数量，而且不再依赖于特定的硬件。但因为粒度较粗，当剪枝比例提升时，会导致模型性能下降较快。</li>
+</ul>
+<img src="/2024/05/20/LLM-Pruner/p0.png" class="">
+<p>接下来要介绍的这篇文章使用的是结构化的剪枝。</p>
+<h2 id="challenges">Challenges</h2>
+<p>大模型的压缩主要有以下挑战：</p>
+<ol type="1">
+<li>模型规模越来越大，导致很多需要训练的压缩方案，比如知识蒸馏，变得很困难。</li>
+<li>训练语料的限制，一方面，模型的原始训练语料一般不公开，另一方面，海量的训练语料需要高昂的收集成本，几乎是不可得的。</li>
+<li>现有的大模型压缩算法往往针对单一、特定的任务，这导致大模型丢失了极为宝贵的处理通用任务的能力。</li>
+</ol>
+<h2 id="motivation">Motivation</h2>
+<p>因此，我们需要一种压缩方式，它无需大规模的训练，且能够维持大模型处理通用任务的能力。目前比较可行的方案是量化和剪枝，这两种方案的组合也确实能取得更好的模型压缩效果。这篇
+paper 提出了一种结构化剪枝方法，能够实现以下这些目标：</p>
+<ol type="1">
+<li>压缩后的模型仍然能够处理通用任务。</li>
+<li>只需要约 50k 的公开语料，用于压缩后调优训练。</li>
+<li>较快的压缩效率，剪枝只需要 3 分钟，压缩后调优训练也只需要 3
+小时。</li>
+<li>能够自动完成剪枝，无需人工指导。</li>
+<li>不需要像非结构化剪枝那样，依赖于特定的硬件。</li>
+</ol>
+<img src="/2024/05/20/LLM-Pruner/intro.png" class="">
+<h2 id="methods">Methods</h2>
+<h3 id="discover-all-coupled-structure-in-llms">Discover All Coupled
+Structure in LLMs</h3>
+<p>因为不同模型子结构之间是有着依赖关系的，不能简单的移除某些子结构就算了，这会导致模型的正确性出问题。</p>
+<p>假设 <span class="math inline">\(N_i,N_j\)</span>
+为模型中的两个神经元，<span
+class="math inline">\(In(N_i),Out(N_i)\)</span> 表示 <span
+class="math inline">\(N_i\)</span> 输入输出所指向的所有神经元，<span
+class="math inline">\(Deg^-(N_i),Deg^+(N_i)\)</span> 分别表示神经元
+<span class="math inline">\(N_i\)</span> 的入度和出度。</p>
+<p>我们如下定义子结构之间的依赖。</p>
+<p>第一种依赖是神经元 <span class="math inline">\(N_j\)</span>
+的输入只有 <span class="math inline">\(N_i\)</span>。</p>
+<p><span class="math display">\[N_j \in Out(N_i) \wedge Deg^-(N_j)=1
+\Rightarrow N_j \text{ is dependent on }N_i\]</span></p>
+<pre class="mermaid">flowchart LR
+    i((i)) --> j((j))
+    i((i)) --> k((k))
+    l((l)) --> k((k))</pre>
+<p>第二种依赖是神经元 <span class="math inline">\(N_i\)</span>
+的输出只导向 <span class="math inline">\(N_j\)</span>。</p>
+<p><span class="math display">\[N_i \in In(N_j) \wedge Deg^+(N_i)=1
+\Rightarrow N_i \text{ is dependent on }N_j\]</span></p>
+<pre class="mermaid">flowchart LR
+    i((i)) --> j((j))
+    l((l)) --> j((j))
+    l((l)) --> k((k))</pre>
+<p>如果某个神经元仅依赖于另一个神经元，而且所依赖的那个神经元被剪枝了，那么这个神经元本身也要被剪枝。</p>
+<p>通过识别神经元之间的依赖关系，我们可以构建一个依赖关系图，然后据此找到模型中耦合的结构，称为组，以组为单位进行剪枝。</p>
+<p>以 LLaMA 为例，如图所示，主要存在三种耦合的可能 1. MLP 内部的耦合。
+2. Multi-head Attention（多头注意力）内部的耦合。 3.
+整个网络中的维度耦合。</p>
+<img src="/2024/05/20/LLM-Pruner/group.png" class="">
+<h2 id="grouped-importance-estimation">Grouped Importance
+Estimation</h2>
+<p>剪枝需要度量参数的重要性，然后才能去除不太重要的参数。</p>
+<p>因为之前已经做过模型的依赖分析了，所以我们以组为单位评估重要性，而非以单个的神经元结构。</p>
+<p>主要有两种度量方式。</p>
+<h3 id="vector-wise-importance">Vector-wise Importance</h3>
+<p>第一，是以整个参数矩阵为单位，评估其重要性。</p>
+<p>我们定义数据集 <span
+class="math inline">\(D=\{x_i,y_i\}_{i=1}^N\)</span>，在实验中使用 10
+个样本就够了，这些样本主要来自于公共数据集。</p>
+<p>一个组被定义为 <span
+class="math inline">\(\mathcal{G}=\{W_i\}_{i=1}^M\)</span>,<span
+class="math inline">\(W_i\)</span> 是单个结构的参数，<span
+class="math inline">\(H\)</span> 是 Hessian 矩阵。</p>
+<p>那么一个参数矩阵的重要性，就可以度量为该矩阵起作用或不起作用对模型性能的影响，也就是模型的
+Loss 与将模型中该参数矩阵置零的 Loss 之差。</p>
+<p><span class="math display">\[I_{W_i} = | \Delta
+\mathcal{L}(\mathcal{D})| = |\mathcal{L}_{W_i}(\mathcal{D}) -
+\mathcal{L}_{W_i=0}(\mathcal{D})| =| \underbrace{\frac{\partial
+\mathcal{L}^{\top}(\mathcal{D})}{\partial W_i} W_i}_{\neq 0}-\frac{1}{2}
+{W_i}^{\top} H W_i + \mathcal{O}\left(\| W_i \|^3\right) | \]</span></p>
+<p>此处还有一些小细节。 1.
+因为使用的数据并不来源于模型的原始数据，所以模型在数据集上并未收敛，重要性的第一项不为零，使得可以较好地度量参数矩阵的重要性。
+2. Hessian 矩阵的计算复杂度过高，所以只计算了对角线上的元素。</p>
+<h3 id="element-wise-importance">Element-wise Importance</h3>
+<p>除此之外，还可以度量更细粒度的重要性，比如单个参数的重要性。</p>
+<p>其中 <span class="math inline">\(W_i^k\)</span> 代表参数矩阵中的第
+<span class="math inline">\(k\)</span> 个参数，<span
+class="math inline">\(H_{kk}\)</span> 是 Hessian
+矩阵。计算重要性的思路跟前面讲的是一样的。</p>
+<p><span class="math display">\[I_{W_i^k} = | \Delta
+\mathcal{L}(\mathcal{D})| = |\mathcal{L}_{W_i^k}(\mathcal{D}) -
+\mathcal{L}_{W_i^k=0}(\mathcal{D})| = | \frac{\partial
+\mathcal{L}(\mathcal{D})}{\partial W_i^k} W_i^k-\frac{1}{2} {W_i^k}
+H_{kk} W_i^k + \mathcal{O}\left(\| W_i^k \|^3\right) |\]</span></p>
+<p>另外，还可以通过 Fisher Information Matrix 来近似 <span
+class="math inline">\(H_{kk}\)</span> 的对角线，就不过多赘述了。</p>
+<p><span class="math display">\[I_{W_i^k} = |
+\mathcal{L}_{W_i^k}(\mathcal{D}) - \mathcal{L}_{W_i^k=0}(\mathcal{D})|
+\approx | \frac{\partial \mathcal{L}(\mathcal{D})}{\partial W_i^k}
+W_i^k-\frac{1}{2} \sum_{j=1}^N \left(\frac{\partial
+\mathcal{L}(\mathcal{D}_j)}{\partial W_i^k} W_i^k\right)^2 +
+\mathcal{O}\left(\| W_i^k \|^3\right) |\]</span></p>
+<h3 id="group-importance">Group Importance</h3>
+<p>拥有了上面的信息，我们就可以度量整个组的重要性了，文中给出了四种不同的方法，分别对应了不同的预设。</p>
+<ol type="1">
+<li>Summation(求和): <span class="math inline">\(I_{\mathcal{G}} =
+\sum_{i=1}^{M}I_{W_i}\)</span> or <span
+class="math inline">\(I_{\mathcal{G}} = \sum_{i=1}^{M}\sum_k
+I_{W_i^k}\)</span>，认为不同参数的重要性的独立可叠加的。</li>
+<li>Production(乘积): <span class="math inline">\(I_{\mathcal{G}} =
+\prod_{i=1}^{M}I_{W_i}\)</span> or <span
+class="math inline">\(I_{\mathcal{G}} = \prod_{i=1}^{M}\sum_k
+I_{W_i^k}\)</span>，认为不同层的重要性会互相影响。</li>
+<li>Max(最大值): <span class="math inline">\(I_{\mathcal{G}} =
+\max_{i=1}^{M}I_{W_i}\)</span> or <span
+class="math inline">\(I_{\mathcal{G}} = \max_{i=1}^{M}\sum_k
+I_{W_i^k}\)</span>，认为组的重要性由其中一层主导。</li>
+<li>Last-Only: <span class="math inline">\(I_{\mathcal{G}} =
+I_{W_l}\)</span> or <span class="math inline">\(I_{\mathcal{G}} = \sum_k
+I_{W_l^k}\)</span>, <span class="math inline">\(l\)</span>
+是最后一层。认为组内的最后一层主导了整层的重要性，因为只有最后一层才会对后面的层产生影响。</li>
+</ol>
+<p>我们可以更具不同的预设，使用不同的重要性度量方式，然后设置阈值，进行粒度为组的剪枝。</p>
+<h2 id="fast-recovery-with-lora">Fast Recovery with LoRA</h2>
+<p>在完成剪枝之后，需要对模型进行恢复训练，以提高模型的精度。这需要使用尽可能少的数据，并且尽可能地快，因此训练时需要使用尽可能少的模型参数。LoRA
+正好能解决这一问题。</p>
+<p>我们快速地过一遍 LoRA。</p>
+<p>在 finetune 模型时，我们实际学习到的东西是 <span
+class="math inline">\(\Delta W\)</span>。与 <span
+class="math inline">\(W_0\)</span> 相比，<span
+class="math inline">\(\Delta W\)</span>
+并没有那么稠密的信息，所以我们可以假定 <span
+class="math inline">\(\Delta W\)</span>
+有低得多的内在维度，可以放心地进行降维。</p>
+<p>因此，我们可以将矩阵 <span class="math inline">\(\Delta W\)</span>
+拆解为 <span class="math inline">\(BA\)</span>，其中</p>
+<p><span class="math display">\[ B\in \mathbb{R}^{d\times r}, A\in
+\mathbb{R}^{r\times k},W\in \mathbb{R}^{d\times k}\]</span> <span
+class="math display">\[r \ll min(d,k)\]</span></p>
+<p>在训练时，将 <span class="math inline">\(W_0\)</span> 冻住，只计算
+<span class="math inline">\(\Delta W=BA\)</span> 的梯度更新。</p>
+<p><span class="math display">\[W_{finetuned}=W_0+\Delta
+W=W_0+BA\]</span></p>
+<img src="/2024/05/20/LLM-Pruner/lora.png" class="">
+<p>因此，在训练时，我们可以只处理比原始大模型小得多的参数量，极大地提升了训练的速度。</p>
+<p>现在，回到 LLM-Pruner。对于每一个可以训练的参数矩阵，我们都进行 LoRA
+finetune，以帮助模型恢复到剪枝前的水平。</p>
+<p><span class="math display">\[f(x) = (W+\Delta W)X + b = (WX + b) +
+(PQ)X\]</span></p>
+<h2 id="results">Results</h2>
+<p>这篇文章对 LLaMA-7B, Vicuna-7B 和 ChatGLM
+三种开源的大模型做了实验，得到了以下这些结论。</p>
+<p>第一，剪枝降低了模型的参数量，提升了推理的速度。LLaMA-7B 原本只能在
+24GB 的单卡上进行推理，剪枝后能 finetune 了。（表中的 Channel 和 Block
+可以参照之前依赖计算时的分组策略）</p>
+<img src="/2024/05/20/LLM-Pruner/res1.png" class="">
+<p>第二，剪枝后模型仍然具备 Zero-shot 能力，能够处理通用的任务。</p>
+<img src="/2024/05/20/LLM-Pruner/res2.png" class="">
+<p>第三，相比与其他剪枝方法，比如 L2，LLM-Pruner
+剪枝后的模型的性能更好。但是，当剪枝的比例增加时，还是会出现困惑度激增的情况，这有待研究。</p>
+<img src="/2024/05/20/LLM-Pruner/res3.png" class="">
+<p>第四，通过一些例子，我们可以看到，剪枝后的模型仍然能够生成高质量的文本。</p>
+<img src="/2024/05/20/LLM-Pruner/res4.png" class="">
+<h2 id="reference">Reference</h2>
+<ol type="1">
+<li>LLM-Pruner:On the Structural Pruning of Large Language Models, <span class="exturl" data-url="aHR0cHM6Ly9hcnhpdi5vcmcvYWJzLzIzMDUuMTE2Mjc=">https://arxiv.org/abs/2305.11627<i class="fa fa-external-link-alt"></i></span>.</li>
+<li>LLM-Pruner Vedio&amp;Slides, <span class="exturl" data-url="aHR0cHM6Ly9zbGlkZXNsaXZlLmNvbS8zOTAwOTY3Ny9sbG1wcnVuZXItb24tdGhlLXN0cnVjdHVyYWwtcHJ1bmluZy1vZi1sYXJnZS1sYW5ndWFnZS1tb2RlbHM=">https://slideslive.com/39009677/llmpruner-on-the-structural-pruning-of-large-language-models<i class="fa fa-external-link-alt"></i></span>.</li>
+<li>A Survey on Model Compression for Large Language Models, <span class="exturl" data-url="aHR0cHM6Ly9hcnhpdi5vcmcvYWJzLzIzMDguMDc2MzM=">https://arxiv.org/abs/2308.07633<i class="fa fa-external-link-alt"></i></span>.</li>
+<li>LoRA: Low-Rank Adaptation of Large Language Models, <span class="exturl" data-url="aHR0cHM6Ly9hcnhpdi5vcmcvYWJzLzIxMDYuMDk2ODU=">https://arxiv.org/abs/2106.09685<i class="fa fa-external-link-alt"></i></span>.</li>
+<li>大模型剪枝概述, <span class="exturl" data-url="aHR0cHM6Ly96aHVhbmxhbi56aGlodS5jb20vcC82OTExNjA5MTc=">https://zhuanlan.zhihu.com/p/691160917<i class="fa fa-external-link-alt"></i></span>.</li>
+<li>LLM-Pruner: 大语言模型的结构化剪枝, <span class="exturl" data-url="aHR0cHM6Ly96aHVhbmxhbi56aGlodS5jb20vcC82MzA5MDIwMTI=">https://zhuanlan.zhihu.com/p/630902012<i class="fa fa-external-link-alt"></i></span>.</li>
+</ol>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/MLSys/" rel="tag"># MLSys</a>
+              <a href="/tags/LLM/" rel="tag"># LLM</a>
+              <a href="/tags/Pruning/" rel="tag"># Pruning</a>
+              <a href="/tags/Structure-Pruning/" rel="tag"># Structure Pruning</a>
+          </div>
+
+        
+  <div class="social-like a2a_kit a2a_kit_size_32 a2a_default_style">
+    <a class="a2a_dd" target="_blank" rel="noopener" href="https://www.addtoany.com/share"></a>
+      <a class="a2a_button_facebook"></a>
+      <a class="a2a_button_twitter"></a>
+  </div>
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2024/05/19/Distilling-Step-by-Step/" rel="prev" title="Distilling Step-by-Step!">
+                  <i class="fa fa-angle-left"></i> Distilling Step-by-Step!
+                </a>
+            </div>
+            <div class="post-nav-item">
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    
+  
+  <div class="comments giscus-container">
+  </div>
+  
+  
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2024</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">NovaPigeon</span>
+  </div>
+<div class="busuanzi-count">
+    <span class="post-meta-item" id="busuanzi_container_site_uv">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+       本站访客数：  <span id="busuanzi_value_site_uv"></span> 人次
+      </span>
+    </span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        本站总访问量： <span id="busuanzi_value_site_pv"></span> 次
+      </span>
+    </span>
+</div>
+  <div class="powered-by">由 <span class="exturl" data-url="aHR0cHM6Ly9oZXhvLmlv">Hexo</span> & <span class="exturl" data-url="aHR0cHM6Ly90aGVtZS1uZXh0LmpzLm9yZw==">NexT.Gemini</span> 强力驱动
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="返回顶部">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+  <span class="exturl github-corner" data-url="aHR0cHM6Ly9naXRodWIuY29tL05vdmFQaWdlb24=" title="在 GitHub 上关注我" aria-label="在 GitHub 上关注我"><svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></span>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pangu/4.0.7/pangu.min.js" integrity="sha256-j+yj56cdEY2CwkVtGyz18fNybFGpMGJ8JxG3GSyO2+I=" crossorigin="anonymous"></script>
+<script src="/js/comments.js"></script><script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/sidebar.js"></script><script src="/js/next-boot.js"></script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/hexo-generator-searchdb/1.4.1/search.js" integrity="sha256-1kfA5uHPf65M5cphT2dvymhkuyHPQp5A53EGZOnOLmc=" crossorigin="anonymous"></script>
+<script src="/js/third-party/search/local-search.js"></script>
+
+  <script class="next-config" data-name="pdf" type="application/json">{"object_url":{"url":"https://cdnjs.cloudflare.com/ajax/libs/pdfobject/2.3.0/pdfobject.min.js","integrity":"sha256-JJZNsid68vnh3/zyj0lY9BN5ynxVX/12XgOa1TlaYN0="},"url":"/lib/pdf/web/viewer.html"}</script>
+  <script src="/js/third-party/tags/pdf.js"></script>
+
+  <script class="next-config" data-name="mermaid" type="application/json">{"enable":true,"theme":{"light":"default","dark":"dark"},"js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.0/mermaid.min.js","integrity":"sha256-stuqcu2FrjYCXDOytWFA5SoUE/r3nkp6gTglzNSlavU="}}</script>
+  <script src="/js/third-party/tags/mermaid.js"></script>
+
+  <script class="next-config" data-name="wavedrom" type="application/json">{"enable":true,"js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/wavedrom/3.5.0/wavedrom.min.js","integrity":"sha256-INLAoJc6quTNfiMWkGZniYO2cxE8mHpddnLow1m6RFs="}}</script>
+  <script class="next-config" data-name="wavedrom_skin" type="application/json">{"enable":true,"js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/wavedrom/3.5.0/skins/default.js","integrity":"sha256-fduc/Zszk5ezWws2uInY/ALWVmIrmV6VTgXbsYSReFI="}}</script>
+  <script src="/js/third-party/tags/wavedrom.js"></script>
+
+
+
+  <script src="/js/third-party/addtoany.js"></script>
+
+  
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+
+
+
+  
+
+  <script class="next-config" data-name="enableMath" type="application/json">true</script><script class="next-config" data-name="mathjax" type="application/json">{"enable":true,"tags":"none","single_dollars":true,"js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js","integrity":"sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI="}}</script>
+<script src="/js/third-party/math/mathjax.js"></script>
+
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/quicklink/2.3.0/quicklink.umd.js" integrity="sha256-yvJQOINiH9fWemHn0vCA5lsHWJaHs6/ZmO+1Ft04SvM=" crossorigin="anonymous"></script>
+  <script class="next-config" data-name="quicklink" type="application/json">{"enable":true,"home":true,"archive":true,"delay":true,"timeout":3000,"priority":true,"url":"https://novapigeon.github.io/2024/05/20/LLM-Pruner/"}</script>
+  <script src="/js/third-party/quicklink.js"></script>
+<script class="next-config" data-name="giscus" type="application/json">{"enable":true,"repo":"NovaPigeon/NovaPigeon.github.io","repo_id":"R_kgDOL7zRSg","category":"Announcements","category_id":"DIC_kwDOL7zRSs4CfX-L","mapping":"pathname","strict":0,"reactions_enabled":1,"emit_metadata":1,"theme":"light","lang":"zh-CN","crossorigin":"anonymous","input_position":"bottom","loading":"lazy"}</script>
+
+<script>
+document.addEventListener('page:loaded', () => {
+  if (!CONFIG.page.comments) return;
+
+  NexT.utils.loadComments('.giscus-container')
+    .then(() => NexT.utils.getScript('https://giscus.app/client.js', {
+      attributes: {
+        async                   : true,
+        crossOrigin             : 'anonymous',
+        'data-repo'             : CONFIG.giscus.repo,
+        'data-repo-id'          : CONFIG.giscus.repo_id,
+        'data-category'         : CONFIG.giscus.category,
+        'data-category-id'      : CONFIG.giscus.category_id,
+        'data-mapping'          : CONFIG.giscus.mapping,
+        'data-strict'           : CONFIG.giscus.strict,
+        'data-reactions-enabled': CONFIG.giscus.reactions_enabled,
+        'data-emit-metadata'    : CONFIG.giscus.emit_metadata,
+        'data-theme'            : CONFIG.giscus.theme,
+        'data-lang'             : CONFIG.giscus.lang,
+        'data-input-position'   : CONFIG.giscus.input_position,
+        'data-loading'          : CONFIG.giscus.loading
+      },
+      parentNode: document.querySelector('.giscus-container')
+    }));
+});
+</script>
+
+</body>
+</html>
