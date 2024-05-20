@@ -411,12 +411,12 @@ class="math inline">\(Deg^-(N_i),Deg^+(N_i)\)</span> 分别表示神经元
 2. Multi-head Attention（多头注意力）内部的耦合。 3.
 整个网络中的维度耦合。</p>
 <img src="/2024/05/20/LLM-Pruner/group.png" class="">
-<h2 id="grouped-importance-estimation">Grouped Importance
-Estimation</h2>
+<h3 id="grouped-importance-estimation">Grouped Importance
+Estimation</h3>
 <p>剪枝需要度量参数的重要性，然后才能去除不太重要的参数。</p>
 <p>因为之前已经做过模型的依赖分析了，所以我们以组为单位评估重要性，而非以单个的神经元结构。</p>
 <p>主要有两种度量方式。</p>
-<h3 id="vector-wise-importance">Vector-wise Importance</h3>
+<h4 id="vector-wise-importance">Vector-wise Importance</h4>
 <p>第一，是以整个参数矩阵为单位，评估其重要性。</p>
 <p>我们定义数据集 <span
 class="math inline">\(D=\{x_i,y_i\}_{i=1}^N\)</span>，在实验中使用 10
@@ -435,7 +435,7 @@ Loss 与将模型中该参数矩阵置零的 Loss 之差。</p>
 <p>此处还有一些小细节。 1.
 因为使用的数据并不来源于模型的原始数据，所以模型在数据集上并未收敛，重要性的第一项不为零，使得可以较好地度量参数矩阵的重要性。
 2. Hessian 矩阵的计算复杂度过高，所以只计算了对角线上的元素。</p>
-<h3 id="element-wise-importance">Element-wise Importance</h3>
+<h4 id="element-wise-importance">Element-wise Importance</h4>
 <p>除此之外，还可以度量更细粒度的重要性，比如单个参数的重要性。</p>
 <p>其中 <span class="math inline">\(W_i^k\)</span> 代表参数矩阵中的第
 <span class="math inline">\(k\)</span> 个参数，<span
@@ -454,7 +454,7 @@ class="math inline">\(H_{kk}\)</span> 的对角线，就不过多赘述了。</p
 W_i^k-\frac{1}{2} \sum_{j=1}^N \left(\frac{\partial
 \mathcal{L}(\mathcal{D}_j)}{\partial W_i^k} W_i^k\right)^2 +
 \mathcal{O}\left(\| W_i^k \|^3\right) |\]</span></p>
-<h3 id="group-importance">Group Importance</h3>
+<h4 id="group-importance">Group Importance</h4>
 <p>拥有了上面的信息，我们就可以度量整个组的重要性了，文中给出了四种不同的方法，分别对应了不同的预设。</p>
 <ol type="1">
 <li>Summation(求和): <span class="math inline">\(I_{\mathcal{G}} =
@@ -475,7 +475,7 @@ I_{W_l^k}\)</span>, <span class="math inline">\(l\)</span>
 是最后一层。认为组内的最后一层主导了整层的重要性，因为只有最后一层才会对后面的层产生影响。</li>
 </ol>
 <p>我们可以更具不同的预设，使用不同的重要性度量方式，然后设置阈值，进行粒度为组的剪枝。</p>
-<h2 id="fast-recovery-with-lora">Fast Recovery with LoRA</h2>
+<h3 id="fast-recovery-with-lora">Fast Recovery with LoRA</h3>
 <p>在完成剪枝之后，需要对模型进行恢复训练，以提高模型的精度。这需要使用尽可能少的数据，并且尽可能地快，因此训练时需要使用尽可能少的模型参数。LoRA
 正好能解决这一问题。</p>
 <p>我们快速地过一遍 LoRA。</p>
@@ -534,332 +534,6 @@ finetune，以帮助模型恢复到剪枝前的水平。</p>
         <tag>LLM Compression</tag>
         <tag>Pruning</tag>
         <tag>Structure Pruning</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>MuCache</title>
-    <url>/2024/05/15/MuCache/</url>
-    <content><![CDATA[<h1 id="microservice-call-graph-caching">Microservice Call Graph
-Caching</h1>
-<h2 id="task-1-reading">Task #1: Reading</h2>
-<h3
-id="read-httpswww.cis.upenn.edusga001papersmucache-nsdi24.pdf.-especially-sec-4-sec-5-and-appendix-a-formal-proof-of-correctness.-source-code-httpsgithub.comeniacmucache">1.
-Read https://www.cis.upenn.edu/~sga001/papers/mucache-nsdi24.pdf.
-Especially Sec 4, Sec 5 and Appendix A formal proof of correctness.
-Source code: https://github.com/eniac/mucache</h3>
-<p>You can see my reading traces in the annotations of the <a
-href="./mucache-nsdi24.pdf">paper</a>.</p>
-<h3
-id="for-the-example-in-figure-4-draw-the-execution-sequence-similar-to-figure-3-to-show-how-mucache-protocol-solves-the-challenge-of-the-diamond-pattern.-what-if-the-write-and-read-operations-come-from-independent-processes-in-s1-draw-all-possible-execution-sequences.">2.
-For the example in Figure 4, draw the execution sequence (similar to
-Figure 3) to show how MuCache protocol solves the challenge of the
-“diamond” pattern. What if the write and read operations come from
-independent processes in S1? Draw all possible execution sequences.</h3>
-<h4 id="diamond-graph">Diamond Graph</h4>
-<pre class="mermaid">flowchart LR;
-    subgraph Service1
-    S1-.-> W11[W1]
-    S1-.-> W12[W1]
-    W12-.->CM1((CM1))
-    W11-.->CM1((CM1))
-    CM1-.->C1[(C1)]
-    W11-.->C1
-    end
-
-    subgraph Service2
-    S2-.-> W21[W2]
-    S2-.-> W22[W2]
-    W22-.->CM2((CM2))
-    W21-.->CM2((CM2))
-    CM2-.->C2[(C2)]
-    W21-.->C2
-    end
-
-    subgraph Service3
-    S3-.-> W31[W3]
-    S3-.-> W32[W3]
-    W32-.->CM3((CM3))
-    W31-.->CM3((CM3))
-    CM3-.->C3[(C3)]
-    W31-.->C3
-    end
-
-    subgraph Service4
-    S4-.-> W41[W4]
-    S4-.-> W42[W4]
-    W42--> D4[(D4)]
-    W42-.->CM4((CM4))
-    W41-.->CM4((CM4))
-    CM4-.->C4[(C4)]
-    W41-.->C4
-    end
-    
-    W11-->S2
-    CM2-.->CM1
-    W11-->S3
-    CM3-.->CM1
-    W21-->S4
-    CM4-.->CM2
-    W31-->S4
-    CM4-.->CM3</pre>
-<h4 id="single-process">Single Process</h4>
-<h5 id="call-stack">Call Stack</h5>
-<p>Call stack of the example in paper(with MuCache) Firstly S1 read(k)
-with trace S1--&gt;S3--&gt;S4(To prepare cache and set status). Then S1
-write(k) with trace S1--&gt;S2--&gt;S4. Eventualy S1 read(k) with trace
-S1--&gt;S3--&gt;S4.(Same as the first one, so ignore it.)
-<figure class="highlight txt"><table><tr><td class="code"><pre><span class="line">W1 preReqStart(ctx[call(&quot;read&quot;,k)])</span><br><span class="line">CM1 startHandler(call(&quot;read&quot;,k)):</span><br><span class="line">    history=[Call(&quot;read&quot;,k)]</span><br><span class="line">W1 preCall(ctx,ca):[ca=Call(&quot;read&quot;,k)]</span><br><span class="line">    readset=&#123;cid:ca&#125;</span><br><span class="line">    cache.get(ca)-&gt;None</span><br><span class="line"></span><br><span class="line">W1 call(&quot;read&quot;,k) to S3</span><br><span class="line">W3 preReqStart(ctx[call(&quot;read&quot;,k)])</span><br><span class="line">CM3 startHandler(call(&quot;read&quot;,k)):</span><br><span class="line">    history=[Call(&quot;read&quot;,k)]</span><br><span class="line">W3 preCall(ctx,ca):[ca=Call(&quot;read&quot;,k)]</span><br><span class="line">    readset=&#123;cid:ca&#125;</span><br><span class="line">    cache.get(ca)-&gt;None</span><br><span class="line"></span><br><span class="line">S3 call(&quot;read&quot;,k) to S4</span><br><span class="line">W4 preReqStart(ctx[call(&quot;read&quot;,k)])</span><br><span class="line">CM4 startHandler(call(&quot;read&quot;,k)):</span><br><span class="line">    history=[Call(&quot;read&quot;,k)]</span><br><span class="line">W4 preRead(ctx,k):</span><br><span class="line">    readsets=&#123;cid:[k]&#125;</span><br><span class="line">W4 read k from DB, get ret</span><br><span class="line">W4 preReturn(ctx, ret)</span><br><span class="line">CM4 endHandler(ca,[k],S2,ret,&#123;S1,S3,S4&#125;):</span><br><span class="line">    saved=&#123;k:(S3,ca)&#125;</span><br><span class="line"></span><br><span class="line">S4 return ret to S3</span><br><span class="line">CM3 saveHandler(ca,ret,&#123;S1,S3,S4&#125;):</span><br><span class="line">    visited=&#123;ca:&#123;S1,S3,S4&#125;&#125;</span><br><span class="line">    cache=&#123;ca:ret&#125;</span><br><span class="line">W3 preReturn(ctx,ret)</span><br><span class="line">CM3 endHandler(ca,[ca],client,ret,&#123;S1,S3,S4&#125;):</span><br><span class="line">    saved=&#123;ca:(S1,ca)&#125;</span><br><span class="line"></span><br><span class="line">S3 return ret to S1</span><br><span class="line">CM1 saveHandler(ca,ret,&#123;S1,S3,S4&#125;):</span><br><span class="line">    visited=&#123;ca:&#123;S1,S3,S4&#125;&#125;</span><br><span class="line">    cache=&#123;ca:ret&#125;</span><br><span class="line">W1 preReturn(ctx,ret)</span><br><span class="line">CM1 endHandler(ca,[ca],None,ret,&#123;S1,S3,S4&#125;):</span><br><span class="line">    saved=&#123;ca:(None,ca)&#125;</span><br><span class="line">S1 return ret</span><br><span class="line"></span><br><span class="line">S1 call(&quot;write&quot;,k,v) to S2(ignore preReqStart &amp; preCall, because &quot;write&quot; is not RO)</span><br><span class="line">S2 call(&quot;write&quot;,k,v) to S4</span><br><span class="line">S4 write(k,v) to DB: </span><br><span class="line">    DB=&#123;k:v&#125;</span><br><span class="line">W4 postWrite(k): </span><br><span class="line">CM4 invHandler(k):</span><br><span class="line">    history=[Call(ca),Inv(k)]</span><br><span class="line">    saved[k]=(S3,ca)</span><br><span class="line">    saved=&#123;&#125;</span><br><span class="line"></span><br><span class="line">CM3 invHandler(ca):</span><br><span class="line">    history=[Call(ca),Inv(ca)]</span><br><span class="line">    saved[ca]=(S1,ca)</span><br><span class="line">    saved=&#123;&#125;</span><br><span class="line">    cache=&#123;&#125;</span><br><span class="line"></span><br><span class="line">CM1 invHandler(ca):</span><br><span class="line">    history=[Call(ca),Inv(ca)]</span><br><span class="line">    saved[ca]=(None,ca)</span><br><span class="line">    saved=&#123;&#125;</span><br><span class="line">    cache=&#123;&#125;</span><br><span class="line"></span><br><span class="line">Then S1 call(&quot;read&quot;,k) would not return the cache unchanged because the cache is empty.</span><br><span class="line"></span><br><span class="line">S1 would execute call(&quot;read&quot;,k) just like the first part of the call stack above.</span><br></pre></td></tr></table></figure></p>
-<h5 id="execution-sequence">Execution Sequence</h5>
-<figure class="highlight txt"><table><tr><td class="code"><pre><span class="line">(1) C1.get(call(&quot;read&quot;,k))-&gt;None</span><br><span class="line">(2a) S1 call(&quot;read&quot;,k) to S3</span><br><span class="line">(2b) CM1.Start(call(&quot;read&quot;,k))</span><br><span class="line">(3) C3.get(call(&quot;read&quot;,k))-&gt;None</span><br><span class="line">(4a) S3 call(&quot;read&quot;,k) to S4</span><br><span class="line">(4b) CM3.Start(call(&quot;read&quot;,k))</span><br><span class="line">(5) CM4.Start(call(&quot;read&quot;,k))</span><br><span class="line">(6) Read(k)</span><br><span class="line">(7a) S4 return ret to S3</span><br><span class="line">(7b) CM4 End(call(&quot;read&quot;,k),&#123;k&#125;,ret)</span><br><span class="line">(8) CM3.Save call(&quot;read&quot;,k)-&gt;ret</span><br><span class="line">(9) C3.set(call(&quot;read&quot;,k))-&gt;ret</span><br><span class="line">(9a) S3 return ret to S1</span><br><span class="line">(9b) CM3 End(call(&quot;read&quot;,k),&#123;call(&quot;read&quot;,k)&#125;,ret)</span><br><span class="line">(10) CM1.Save call(&quot;read&quot;,k)-&gt;ret</span><br><span class="line">(11) C1.set(call(&quot;read&quot;,k))-&gt;ret</span><br><span class="line">(12) return ret</span><br><span class="line"></span><br><span class="line">(13) S1 call(&quot;write&quot;,k,v) to S2</span><br><span class="line">(14) S2 call(&quot;write&quot;,k,v) to S4</span><br><span class="line">(15) S4 Write(k,v)</span><br><span class="line">(16) CM4.Inv(k)</span><br><span class="line">(17) CM3.Inv(call(&quot;read&quot;,k)) </span><br><span class="line">(18) C3.delete(call(&quot;read&quot;,k))</span><br><span class="line">(19) CM1.Inv(call(&quot;read&quot;,k))</span><br><span class="line">(20) C1.delete(call(&quot;read&quot;,k))</span><br><span class="line"></span><br><span class="line">(21) C1.get(call(&quot;read&quot;,k))-&gt;None</span><br><span class="line">(22) ......(Same as (1)-(12))</span><br></pre></td></tr></table></figure>
-<h4 id="multiple-independent-process">Multiple Independent Process</h4>
-<pre class="mermaid">flowchart LR
-    S1-->|W|S2
-    S2-->|W|S4
-    S1-->|R|S3
-    S3-->|R|S4</pre>
-<p>Ignore the equivalent modulo reordering traces.</p>
-<p>If, as in the case of a single process, there is a cache for
-call("read", k) in S1, then there are only two possibilities:</p>
-<ol type="1">
-<li>After Inv propagation back to S1, the Read propagation follows the
-trace S1 -&gt; S3 -&gt; S4, consistent with the trace of the single
-process mentioned earlier.</li>
-<li>If Inv has not yet propagated back to S1, then the read operation
-directly returns the content from the cache. <figure class="highlight txt"><table><tr><td class="code"><pre><span class="line">Write</span><br><span class="line">......</span><br><span class="line">Read(k)</span><br><span class="line">C1.get(ca)--&gt;ret</span><br><span class="line">S1 return ret</span><br><span class="line">......</span><br><span class="line">C1.Inv(ca)</span><br><span class="line">......</span><br></pre></td></tr></table></figure></li>
-</ol>
-<p>Let's consider the case where there is no cache entry for read(k) in
-S1.</p>
-<ol type="1">
-<li>In CM4, if Inv(k) arrives before End(read...) is reached, then the
-information about the cache entry for k is not yet recorded in saved,
-and Inv(k) cannot propagate along S4--&gt;S3--&gt;S1. Also, it cannot
-send Save information to S3. However, since CM3 has not received
-Inv(ca), it sends Save to CM1. <figure class="highlight txt"><table><tr><td class="code"><pre><span class="line">(1) C1.get(call(&quot;read&quot;,k))-&gt;None</span><br><span class="line">(2a) S1 call(&quot;read&quot;,k) to S3</span><br><span class="line">(2b) CM1.Start(call(&quot;read&quot;,k))</span><br><span class="line">(3) C3.get(call(&quot;read&quot;,k))-&gt;None</span><br><span class="line">(4a) S3 call(&quot;read&quot;,k) to S4</span><br><span class="line">(4b) CM3.Start(call(&quot;read&quot;,k))</span><br><span class="line">(5) CM4.Start(call(&quot;read&quot;,k))</span><br><span class="line">(6) Read(k)-&gt;ret</span><br><span class="line"></span><br><span class="line">(7) S1 call(&quot;write&quot;,k,v) to S2</span><br><span class="line">(8) S2 call(&quot;write&quot;,k,v) to S4</span><br><span class="line">(9) S4 Write(k,v)</span><br><span class="line"></span><br><span class="line">(1)-(6) and (7)-(9) 是同步独立进行的。</span><br><span class="line"></span><br><span class="line">(10) Inv(k)</span><br><span class="line">(11a) CM4 End(call(&quot;read&quot;,k),&#123;k&#125;,ret)</span><br><span class="line">(11b) S4 return ret to S3</span><br><span class="line"></span><br><span class="line">(12a) S3 return ret to S1</span><br><span class="line">(12b) CM3 End(call(&quot;read&quot;,k),&#123;call(&quot;read&quot;,k)&#125;,ret)</span><br><span class="line">(13) CM1.Save call(&quot;read&quot;,k)-&gt;ret</span><br><span class="line">(14) C1.set(call(&quot;read&quot;,k))-&gt;ret</span><br><span class="line">(15) return ret</span><br></pre></td></tr></table></figure></li>
-<li>In CM4, if Inv(k) arrives after End(read...), then let's consider
-the situation in CM3 (keeping in mind that Save and Inv cannot be
-reordered, so Save should arrive before Inv in CM3, and similarly in
-CM1): <figure class="highlight txt"><table><tr><td class="code"><pre><span class="line">(1) C1.get(call(&quot;read&quot;,k))-&gt;None</span><br><span class="line">(2a) S1 call(&quot;read&quot;,k) to S3</span><br><span class="line">(2b) CM1.Start(call(&quot;read&quot;,k))</span><br><span class="line">(3) C3.get(call(&quot;read&quot;,k))-&gt;None</span><br><span class="line">(4a) S3 call(&quot;read&quot;,k) to S4</span><br><span class="line">(4b) CM3.Start(call(&quot;read&quot;,k))</span><br><span class="line">(5) CM4.Start(call(&quot;read&quot;,k))</span><br><span class="line"></span><br><span class="line">(6) S1 call(&quot;write&quot;,k,v) to S2</span><br><span class="line">(7) S2 call(&quot;write&quot;,k,v) to S4</span><br><span class="line"></span><br><span class="line">(8) Read(k)</span><br><span class="line">(9) S4 Write(k,v)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">(10) CM4 End(call(&quot;read&quot;,k),&#123;k&#125;,ret)</span><br><span class="line">(11) S4 return ret to S3</span><br><span class="line">(12) Inv(k)</span><br></pre></td></tr></table></figure>
-<ul>
-<li><p>Save--&gt;Inv--&gt;End <figure class="highlight txt"><table><tr><td class="code"><pre><span class="line">(13) CM3.Save(ca)-&gt;ret;C3.set(ca,ret)</span><br><span class="line">(14) CM3.Inv(ca);C3.delete(ca)</span><br><span class="line">(15) CM3.End(ca,...)</span><br><span class="line">(16) S3 return ret to S1</span><br><span class="line">(17) CM1.End(ca,...)</span><br><span class="line">(18) return ret</span><br></pre></td></tr></table></figure></p></li>
-<li><p>End--&gt;Save--Inv <figure class="highlight txt"><table><tr><td class="code"><pre><span class="line">(13) CM3.End(ca,...)</span><br><span class="line">(14) CM3.Save(ca)-&gt;ret;C3.set(ca,ret)</span><br><span class="line">(15) CM3.Inv(ca);C3.delete(ca)</span><br><span class="line">(16) S3 return ret to S1</span><br><span class="line">(17) CM1.End(ca,...)</span><br><span class="line">(18) CM1.Save(ca)-&gt;ret;C1.set(ca,ret)</span><br><span class="line">(19) CM1.Inv(ca);C1.delete(ca)</span><br><span class="line">(20) return ret</span><br></pre></td></tr></table></figure></p></li>
-</ul></li>
-</ol>
-<h3
-id="choose-a-microservice-and-provide-a-few-example-function-calls-to-simulate-which-data-could-be-cached-and-simulate-a-cache-hit-and-a-cache-miss.-you-may-choose-any-cache-size-and-eviction-policy-you-like">3.
-Choose a microservice and provide a few example function calls to
-simulate which data could be cached, and simulate a cache hit and a
-cache miss. (You may choose any cache size and eviction policy you
-like)</h3>
-<h4 id="initialization">Initialization</h4>
-<p>Cache size: 2 Eviction policy: LRU Microservice:</p>
-<pre class="mermaid">classDiagram
-class client
-class frontend
-class pic_manager
-class text_manager
-
-class text_database
-class pic_database
-    
-client-->frontend
-frontend-->pic_manager
-pic_manager-->pic_database
-frontend-->text_manager
-text_manager-->text_database</pre>
-<p>All caches and states are empty at the beginning.</p>
-<h4 id="function-sequence">Function Sequence</h4>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">   download_text(name1)</span><br><span class="line">--&gt;download_text(name2)</span><br><span class="line">--&gt;download_pic(name3)</span><br><span class="line">--&gt;uploadpic(name3,pic2)</span><br><span class="line">--&gt;download_text(name2)</span><br></pre></td></tr></table></figure>
-<h4 id="memory-states">Memory States</h4>
-<p>Only simulate the memory states.</p>
-<pre class="mermaid">---
-title: Init
----
-classDiagram
-class client
-class frontend
-class pic_manager
-class text_manager
-
-class text_database
-text_database: name1->txt1
-text_database: name2->txt2
-class pic_database
-pic_database: name3->pic1
-    
-client-->frontend
-frontend-->pic_manager
-pic_manager-->pic_database
-frontend-->text_manager
-text_manager-->text_database</pre>
-<pre class="mermaid">---
-title: download_text(name1), cache miss
----
-classDiagram
-
-class client
-client: download_text(name1)->txt1
-class frontend
-frontend: download_text(name1)->txt1
-class pic_manager
-class text_manager
-text_manager: download_text(name1)->txt1
-
-class text_database
-text_database: name1->txt1
-text_database: name2->txt2
-class pic_database
-pic_database: name3->pic1
-
-
-client-->frontend:download
-frontend-->pic_manager
-pic_manager-->pic_database
-frontend-->text_manager:download
-text_manager-->text_database:download
-text_database-->text_manager:save
-text_manager-->frontend:save
-frontend-->client:save</pre>
-<pre class="mermaid">---
-title: download_text(name2), cache miss
----
-classDiagram
-
-class client
-client: download_text(name1)->txt1
-client: download_text(name2)->txt2
-class frontend
-frontend: download_text(name1)->txt1
-frontend: download_text(name2)->txt2
-
-class pic_manager
-class text_manager
-text_manager: download_text(name1)->txt1
-text_manager: download_text(name2)->txt2
-
-class text_database
-text_database: name1->txt1
-text_database: name2->txt2
-class pic_database
-pic_database: name3->pic1
-
-
-client-->frontend:download
-frontend-->pic_manager
-pic_manager-->pic_database
-frontend-->text_manager:download
-text_manager-->text_database:download
-text_database-->text_manager:save
-text_manager-->frontend:save
-frontend-->client:save</pre>
-<pre class="mermaid">---
-title: download_pic(name3), cache miss/eviction
----
-classDiagram
-
-class client
-client: download_text(name2)->txt2
-client: download_pic(name3)->pic1
-class frontend
-frontend: download_text(name2)->txt2
-frontend: download_pic(name3)->pic1
-
-class pic_manager
-pic_manager: download_pic(name3)->pic1
-class text_manager
-text_manager: download_text(name1)->txt1
-text_manager: download_text(name2)->txt2
-
-class text_database
-text_database: name1->txt1
-text_database: name2->txt2
-class pic_database
-pic_database: name3->pic1
-
-
-client-->frontend:download
-frontend-->pic_manager:download
-pic_manager-->pic_database:download
-frontend-->text_manager
-text_manager-->text_database
-pic_database-->pic_manager:save
-pic_manager-->frontend:save
-frontend-->client:save</pre>
-<pre class="mermaid">---
-title: uploadpic(name3,pic2), cache invalidate
----
-classDiagram
-
-class client
-client: download_text(name2)->txt2
-class frontend
-frontend: download_text(name2)->txt2
-
-class pic_manager
-class text_manager
-text_manager: download_text(name1)->txt1
-text_manager: download_text(name2)->txt2
-
-class text_database
-text_database: name1->txt1
-text_database: name2->txt2
-class pic_database
-pic_database: name3->pic2
-
-
-client-->frontend:upload
-frontend-->pic_manager:upload
-pic_manager-->pic_database:upload
-frontend-->text_manager
-text_manager-->text_database
-pic_database-->pic_manager:inv
-pic_manager-->frontend:inv
-frontend-->client:inv</pre>
-<pre class="mermaid">---
-title: download_text(name2), cache hit
----
-classDiagram
-
-class client
-client: download_text(name2)->txt2
-class frontend
-frontend: download_text(name2)->txt2
-
-class pic_manager
-class text_manager
-text_manager: download_text(name1)->txt1
-text_manager: download_text(name2)->txt2
-
-class text_database
-text_database: name1->txt1
-text_database: name2->txt2
-class pic_database
-pic_database: name3->pic2
-
-
-client-->frontend
-frontend-->pic_manager
-pic_manager-->pic_database
-frontend-->text_manager
-text_manager-->text_database</pre>
-<h2 id="task-2-coding">Task #2: Coding</h2>
-<blockquote>
-<p>Summarize the key components to apply the MuCache protocol, and
-implement an example to show that the datastore is linearizable. Note:
-We are not asking you to build and run the open-source version of
-MuCache (you may use it as a reference). Please implement your own
-version of MuCache protocol (just a prototype to show the key ideas).
-You may remove any component you think is not critical in the design,
-and use simple functions to simulate the behavior of each service/thread
-in your code.</p>
-</blockquote>
-<p>Please refer to the code <a href="./mucache">mucache</a> and <a
-href="./mucache/README.md">readme</a>.</p>
-]]></content>
-      <categories>
-        <category>Paper Reading</category>
-      </categories>
-      <tags>
-        <tag>MicroService</tag>
       </tags>
   </entry>
   <entry>
@@ -1291,6 +965,332 @@ Large-Scale Transformers, <span class="exturl" data-url="aHR0cHM6Ly9hcnhpdi5vcmc
         <tag>LLM Compression</tag>
         <tag>Quantization</tag>
         <tag>PTQ</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>MuCache</title>
+    <url>/2024/05/15/MuCache/</url>
+    <content><![CDATA[<h1 id="microservice-call-graph-caching">Microservice Call Graph
+Caching</h1>
+<h2 id="task-1-reading">Task #1: Reading</h2>
+<h3
+id="read-httpswww.cis.upenn.edusga001papersmucache-nsdi24.pdf.-especially-sec-4-sec-5-and-appendix-a-formal-proof-of-correctness.-source-code-httpsgithub.comeniacmucache">1.
+Read https://www.cis.upenn.edu/~sga001/papers/mucache-nsdi24.pdf.
+Especially Sec 4, Sec 5 and Appendix A formal proof of correctness.
+Source code: https://github.com/eniac/mucache</h3>
+<p>You can see my reading traces in the annotations of the <a
+href="./mucache-nsdi24.pdf">paper</a>.</p>
+<h3
+id="for-the-example-in-figure-4-draw-the-execution-sequence-similar-to-figure-3-to-show-how-mucache-protocol-solves-the-challenge-of-the-diamond-pattern.-what-if-the-write-and-read-operations-come-from-independent-processes-in-s1-draw-all-possible-execution-sequences.">2.
+For the example in Figure 4, draw the execution sequence (similar to
+Figure 3) to show how MuCache protocol solves the challenge of the
+“diamond” pattern. What if the write and read operations come from
+independent processes in S1? Draw all possible execution sequences.</h3>
+<h4 id="diamond-graph">Diamond Graph</h4>
+<pre class="mermaid">flowchart LR;
+    subgraph Service1
+    S1-.-> W11[W1]
+    S1-.-> W12[W1]
+    W12-.->CM1((CM1))
+    W11-.->CM1((CM1))
+    CM1-.->C1[(C1)]
+    W11-.->C1
+    end
+
+    subgraph Service2
+    S2-.-> W21[W2]
+    S2-.-> W22[W2]
+    W22-.->CM2((CM2))
+    W21-.->CM2((CM2))
+    CM2-.->C2[(C2)]
+    W21-.->C2
+    end
+
+    subgraph Service3
+    S3-.-> W31[W3]
+    S3-.-> W32[W3]
+    W32-.->CM3((CM3))
+    W31-.->CM3((CM3))
+    CM3-.->C3[(C3)]
+    W31-.->C3
+    end
+
+    subgraph Service4
+    S4-.-> W41[W4]
+    S4-.-> W42[W4]
+    W42--> D4[(D4)]
+    W42-.->CM4((CM4))
+    W41-.->CM4((CM4))
+    CM4-.->C4[(C4)]
+    W41-.->C4
+    end
+    
+    W11-->S2
+    CM2-.->CM1
+    W11-->S3
+    CM3-.->CM1
+    W21-->S4
+    CM4-.->CM2
+    W31-->S4
+    CM4-.->CM3</pre>
+<h4 id="single-process">Single Process</h4>
+<h5 id="call-stack">Call Stack</h5>
+<p>Call stack of the example in paper(with MuCache) Firstly S1 read(k)
+with trace S1--&gt;S3--&gt;S4(To prepare cache and set status). Then S1
+write(k) with trace S1--&gt;S2--&gt;S4. Eventualy S1 read(k) with trace
+S1--&gt;S3--&gt;S4.(Same as the first one, so ignore it.)
+<figure class="highlight txt"><table><tr><td class="code"><pre><span class="line">W1 preReqStart(ctx[call(&quot;read&quot;,k)])</span><br><span class="line">CM1 startHandler(call(&quot;read&quot;,k)):</span><br><span class="line">    history=[Call(&quot;read&quot;,k)]</span><br><span class="line">W1 preCall(ctx,ca):[ca=Call(&quot;read&quot;,k)]</span><br><span class="line">    readset=&#123;cid:ca&#125;</span><br><span class="line">    cache.get(ca)-&gt;None</span><br><span class="line"></span><br><span class="line">W1 call(&quot;read&quot;,k) to S3</span><br><span class="line">W3 preReqStart(ctx[call(&quot;read&quot;,k)])</span><br><span class="line">CM3 startHandler(call(&quot;read&quot;,k)):</span><br><span class="line">    history=[Call(&quot;read&quot;,k)]</span><br><span class="line">W3 preCall(ctx,ca):[ca=Call(&quot;read&quot;,k)]</span><br><span class="line">    readset=&#123;cid:ca&#125;</span><br><span class="line">    cache.get(ca)-&gt;None</span><br><span class="line"></span><br><span class="line">S3 call(&quot;read&quot;,k) to S4</span><br><span class="line">W4 preReqStart(ctx[call(&quot;read&quot;,k)])</span><br><span class="line">CM4 startHandler(call(&quot;read&quot;,k)):</span><br><span class="line">    history=[Call(&quot;read&quot;,k)]</span><br><span class="line">W4 preRead(ctx,k):</span><br><span class="line">    readsets=&#123;cid:[k]&#125;</span><br><span class="line">W4 read k from DB, get ret</span><br><span class="line">W4 preReturn(ctx, ret)</span><br><span class="line">CM4 endHandler(ca,[k],S2,ret,&#123;S1,S3,S4&#125;):</span><br><span class="line">    saved=&#123;k:(S3,ca)&#125;</span><br><span class="line"></span><br><span class="line">S4 return ret to S3</span><br><span class="line">CM3 saveHandler(ca,ret,&#123;S1,S3,S4&#125;):</span><br><span class="line">    visited=&#123;ca:&#123;S1,S3,S4&#125;&#125;</span><br><span class="line">    cache=&#123;ca:ret&#125;</span><br><span class="line">W3 preReturn(ctx,ret)</span><br><span class="line">CM3 endHandler(ca,[ca],client,ret,&#123;S1,S3,S4&#125;):</span><br><span class="line">    saved=&#123;ca:(S1,ca)&#125;</span><br><span class="line"></span><br><span class="line">S3 return ret to S1</span><br><span class="line">CM1 saveHandler(ca,ret,&#123;S1,S3,S4&#125;):</span><br><span class="line">    visited=&#123;ca:&#123;S1,S3,S4&#125;&#125;</span><br><span class="line">    cache=&#123;ca:ret&#125;</span><br><span class="line">W1 preReturn(ctx,ret)</span><br><span class="line">CM1 endHandler(ca,[ca],None,ret,&#123;S1,S3,S4&#125;):</span><br><span class="line">    saved=&#123;ca:(None,ca)&#125;</span><br><span class="line">S1 return ret</span><br><span class="line"></span><br><span class="line">S1 call(&quot;write&quot;,k,v) to S2(ignore preReqStart &amp; preCall, because &quot;write&quot; is not RO)</span><br><span class="line">S2 call(&quot;write&quot;,k,v) to S4</span><br><span class="line">S4 write(k,v) to DB: </span><br><span class="line">    DB=&#123;k:v&#125;</span><br><span class="line">W4 postWrite(k): </span><br><span class="line">CM4 invHandler(k):</span><br><span class="line">    history=[Call(ca),Inv(k)]</span><br><span class="line">    saved[k]=(S3,ca)</span><br><span class="line">    saved=&#123;&#125;</span><br><span class="line"></span><br><span class="line">CM3 invHandler(ca):</span><br><span class="line">    history=[Call(ca),Inv(ca)]</span><br><span class="line">    saved[ca]=(S1,ca)</span><br><span class="line">    saved=&#123;&#125;</span><br><span class="line">    cache=&#123;&#125;</span><br><span class="line"></span><br><span class="line">CM1 invHandler(ca):</span><br><span class="line">    history=[Call(ca),Inv(ca)]</span><br><span class="line">    saved[ca]=(None,ca)</span><br><span class="line">    saved=&#123;&#125;</span><br><span class="line">    cache=&#123;&#125;</span><br><span class="line"></span><br><span class="line">Then S1 call(&quot;read&quot;,k) would not return the cache unchanged because the cache is empty.</span><br><span class="line"></span><br><span class="line">S1 would execute call(&quot;read&quot;,k) just like the first part of the call stack above.</span><br></pre></td></tr></table></figure></p>
+<h5 id="execution-sequence">Execution Sequence</h5>
+<figure class="highlight txt"><table><tr><td class="code"><pre><span class="line">(1) C1.get(call(&quot;read&quot;,k))-&gt;None</span><br><span class="line">(2a) S1 call(&quot;read&quot;,k) to S3</span><br><span class="line">(2b) CM1.Start(call(&quot;read&quot;,k))</span><br><span class="line">(3) C3.get(call(&quot;read&quot;,k))-&gt;None</span><br><span class="line">(4a) S3 call(&quot;read&quot;,k) to S4</span><br><span class="line">(4b) CM3.Start(call(&quot;read&quot;,k))</span><br><span class="line">(5) CM4.Start(call(&quot;read&quot;,k))</span><br><span class="line">(6) Read(k)</span><br><span class="line">(7a) S4 return ret to S3</span><br><span class="line">(7b) CM4 End(call(&quot;read&quot;,k),&#123;k&#125;,ret)</span><br><span class="line">(8) CM3.Save call(&quot;read&quot;,k)-&gt;ret</span><br><span class="line">(9) C3.set(call(&quot;read&quot;,k))-&gt;ret</span><br><span class="line">(9a) S3 return ret to S1</span><br><span class="line">(9b) CM3 End(call(&quot;read&quot;,k),&#123;call(&quot;read&quot;,k)&#125;,ret)</span><br><span class="line">(10) CM1.Save call(&quot;read&quot;,k)-&gt;ret</span><br><span class="line">(11) C1.set(call(&quot;read&quot;,k))-&gt;ret</span><br><span class="line">(12) return ret</span><br><span class="line"></span><br><span class="line">(13) S1 call(&quot;write&quot;,k,v) to S2</span><br><span class="line">(14) S2 call(&quot;write&quot;,k,v) to S4</span><br><span class="line">(15) S4 Write(k,v)</span><br><span class="line">(16) CM4.Inv(k)</span><br><span class="line">(17) CM3.Inv(call(&quot;read&quot;,k)) </span><br><span class="line">(18) C3.delete(call(&quot;read&quot;,k))</span><br><span class="line">(19) CM1.Inv(call(&quot;read&quot;,k))</span><br><span class="line">(20) C1.delete(call(&quot;read&quot;,k))</span><br><span class="line"></span><br><span class="line">(21) C1.get(call(&quot;read&quot;,k))-&gt;None</span><br><span class="line">(22) ......(Same as (1)-(12))</span><br></pre></td></tr></table></figure>
+<h4 id="multiple-independent-process">Multiple Independent Process</h4>
+<pre class="mermaid">flowchart LR
+    S1-->|W|S2
+    S2-->|W|S4
+    S1-->|R|S3
+    S3-->|R|S4</pre>
+<p>Ignore the equivalent modulo reordering traces.</p>
+<p>If, as in the case of a single process, there is a cache for
+call("read", k) in S1, then there are only two possibilities:</p>
+<ol type="1">
+<li>After Inv propagation back to S1, the Read propagation follows the
+trace S1 -&gt; S3 -&gt; S4, consistent with the trace of the single
+process mentioned earlier.</li>
+<li>If Inv has not yet propagated back to S1, then the read operation
+directly returns the content from the cache. <figure class="highlight txt"><table><tr><td class="code"><pre><span class="line">Write</span><br><span class="line">......</span><br><span class="line">Read(k)</span><br><span class="line">C1.get(ca)--&gt;ret</span><br><span class="line">S1 return ret</span><br><span class="line">......</span><br><span class="line">C1.Inv(ca)</span><br><span class="line">......</span><br></pre></td></tr></table></figure></li>
+</ol>
+<p>Let's consider the case where there is no cache entry for read(k) in
+S1.</p>
+<ol type="1">
+<li>In CM4, if Inv(k) arrives before End(read...) is reached, then the
+information about the cache entry for k is not yet recorded in saved,
+and Inv(k) cannot propagate along S4--&gt;S3--&gt;S1. Also, it cannot
+send Save information to S3. However, since CM3 has not received
+Inv(ca), it sends Save to CM1. <figure class="highlight txt"><table><tr><td class="code"><pre><span class="line">(1) C1.get(call(&quot;read&quot;,k))-&gt;None</span><br><span class="line">(2a) S1 call(&quot;read&quot;,k) to S3</span><br><span class="line">(2b) CM1.Start(call(&quot;read&quot;,k))</span><br><span class="line">(3) C3.get(call(&quot;read&quot;,k))-&gt;None</span><br><span class="line">(4a) S3 call(&quot;read&quot;,k) to S4</span><br><span class="line">(4b) CM3.Start(call(&quot;read&quot;,k))</span><br><span class="line">(5) CM4.Start(call(&quot;read&quot;,k))</span><br><span class="line">(6) Read(k)-&gt;ret</span><br><span class="line"></span><br><span class="line">(7) S1 call(&quot;write&quot;,k,v) to S2</span><br><span class="line">(8) S2 call(&quot;write&quot;,k,v) to S4</span><br><span class="line">(9) S4 Write(k,v)</span><br><span class="line"></span><br><span class="line">(1)-(6) and (7)-(9) 是同步独立进行的。</span><br><span class="line"></span><br><span class="line">(10) Inv(k)</span><br><span class="line">(11a) CM4 End(call(&quot;read&quot;,k),&#123;k&#125;,ret)</span><br><span class="line">(11b) S4 return ret to S3</span><br><span class="line"></span><br><span class="line">(12a) S3 return ret to S1</span><br><span class="line">(12b) CM3 End(call(&quot;read&quot;,k),&#123;call(&quot;read&quot;,k)&#125;,ret)</span><br><span class="line">(13) CM1.Save call(&quot;read&quot;,k)-&gt;ret</span><br><span class="line">(14) C1.set(call(&quot;read&quot;,k))-&gt;ret</span><br><span class="line">(15) return ret</span><br></pre></td></tr></table></figure></li>
+<li>In CM4, if Inv(k) arrives after End(read...), then let's consider
+the situation in CM3 (keeping in mind that Save and Inv cannot be
+reordered, so Save should arrive before Inv in CM3, and similarly in
+CM1): <figure class="highlight txt"><table><tr><td class="code"><pre><span class="line">(1) C1.get(call(&quot;read&quot;,k))-&gt;None</span><br><span class="line">(2a) S1 call(&quot;read&quot;,k) to S3</span><br><span class="line">(2b) CM1.Start(call(&quot;read&quot;,k))</span><br><span class="line">(3) C3.get(call(&quot;read&quot;,k))-&gt;None</span><br><span class="line">(4a) S3 call(&quot;read&quot;,k) to S4</span><br><span class="line">(4b) CM3.Start(call(&quot;read&quot;,k))</span><br><span class="line">(5) CM4.Start(call(&quot;read&quot;,k))</span><br><span class="line"></span><br><span class="line">(6) S1 call(&quot;write&quot;,k,v) to S2</span><br><span class="line">(7) S2 call(&quot;write&quot;,k,v) to S4</span><br><span class="line"></span><br><span class="line">(8) Read(k)</span><br><span class="line">(9) S4 Write(k,v)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">(10) CM4 End(call(&quot;read&quot;,k),&#123;k&#125;,ret)</span><br><span class="line">(11) S4 return ret to S3</span><br><span class="line">(12) Inv(k)</span><br></pre></td></tr></table></figure>
+<ul>
+<li><p>Save--&gt;Inv--&gt;End <figure class="highlight txt"><table><tr><td class="code"><pre><span class="line">(13) CM3.Save(ca)-&gt;ret;C3.set(ca,ret)</span><br><span class="line">(14) CM3.Inv(ca);C3.delete(ca)</span><br><span class="line">(15) CM3.End(ca,...)</span><br><span class="line">(16) S3 return ret to S1</span><br><span class="line">(17) CM1.End(ca,...)</span><br><span class="line">(18) return ret</span><br></pre></td></tr></table></figure></p></li>
+<li><p>End--&gt;Save--Inv <figure class="highlight txt"><table><tr><td class="code"><pre><span class="line">(13) CM3.End(ca,...)</span><br><span class="line">(14) CM3.Save(ca)-&gt;ret;C3.set(ca,ret)</span><br><span class="line">(15) CM3.Inv(ca);C3.delete(ca)</span><br><span class="line">(16) S3 return ret to S1</span><br><span class="line">(17) CM1.End(ca,...)</span><br><span class="line">(18) CM1.Save(ca)-&gt;ret;C1.set(ca,ret)</span><br><span class="line">(19) CM1.Inv(ca);C1.delete(ca)</span><br><span class="line">(20) return ret</span><br></pre></td></tr></table></figure></p></li>
+</ul></li>
+</ol>
+<h3
+id="choose-a-microservice-and-provide-a-few-example-function-calls-to-simulate-which-data-could-be-cached-and-simulate-a-cache-hit-and-a-cache-miss.-you-may-choose-any-cache-size-and-eviction-policy-you-like">3.
+Choose a microservice and provide a few example function calls to
+simulate which data could be cached, and simulate a cache hit and a
+cache miss. (You may choose any cache size and eviction policy you
+like)</h3>
+<h4 id="initialization">Initialization</h4>
+<p>Cache size: 2 Eviction policy: LRU Microservice:</p>
+<pre class="mermaid">classDiagram
+class client
+class frontend
+class pic_manager
+class text_manager
+
+class text_database
+class pic_database
+    
+client-->frontend
+frontend-->pic_manager
+pic_manager-->pic_database
+frontend-->text_manager
+text_manager-->text_database</pre>
+<p>All caches and states are empty at the beginning.</p>
+<h4 id="function-sequence">Function Sequence</h4>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">   download_text(name1)</span><br><span class="line">--&gt;download_text(name2)</span><br><span class="line">--&gt;download_pic(name3)</span><br><span class="line">--&gt;uploadpic(name3,pic2)</span><br><span class="line">--&gt;download_text(name2)</span><br></pre></td></tr></table></figure>
+<h4 id="memory-states">Memory States</h4>
+<p>Only simulate the memory states.</p>
+<pre class="mermaid">---
+title: Init
+---
+classDiagram
+class client
+class frontend
+class pic_manager
+class text_manager
+
+class text_database
+text_database: name1->txt1
+text_database: name2->txt2
+class pic_database
+pic_database: name3->pic1
+    
+client-->frontend
+frontend-->pic_manager
+pic_manager-->pic_database
+frontend-->text_manager
+text_manager-->text_database</pre>
+<pre class="mermaid">---
+title: download_text(name1), cache miss
+---
+classDiagram
+
+class client
+client: download_text(name1)->txt1
+class frontend
+frontend: download_text(name1)->txt1
+class pic_manager
+class text_manager
+text_manager: download_text(name1)->txt1
+
+class text_database
+text_database: name1->txt1
+text_database: name2->txt2
+class pic_database
+pic_database: name3->pic1
+
+
+client-->frontend:download
+frontend-->pic_manager
+pic_manager-->pic_database
+frontend-->text_manager:download
+text_manager-->text_database:download
+text_database-->text_manager:save
+text_manager-->frontend:save
+frontend-->client:save</pre>
+<pre class="mermaid">---
+title: download_text(name2), cache miss
+---
+classDiagram
+
+class client
+client: download_text(name1)->txt1
+client: download_text(name2)->txt2
+class frontend
+frontend: download_text(name1)->txt1
+frontend: download_text(name2)->txt2
+
+class pic_manager
+class text_manager
+text_manager: download_text(name1)->txt1
+text_manager: download_text(name2)->txt2
+
+class text_database
+text_database: name1->txt1
+text_database: name2->txt2
+class pic_database
+pic_database: name3->pic1
+
+
+client-->frontend:download
+frontend-->pic_manager
+pic_manager-->pic_database
+frontend-->text_manager:download
+text_manager-->text_database:download
+text_database-->text_manager:save
+text_manager-->frontend:save
+frontend-->client:save</pre>
+<pre class="mermaid">---
+title: download_pic(name3), cache miss/eviction
+---
+classDiagram
+
+class client
+client: download_text(name2)->txt2
+client: download_pic(name3)->pic1
+class frontend
+frontend: download_text(name2)->txt2
+frontend: download_pic(name3)->pic1
+
+class pic_manager
+pic_manager: download_pic(name3)->pic1
+class text_manager
+text_manager: download_text(name1)->txt1
+text_manager: download_text(name2)->txt2
+
+class text_database
+text_database: name1->txt1
+text_database: name2->txt2
+class pic_database
+pic_database: name3->pic1
+
+
+client-->frontend:download
+frontend-->pic_manager:download
+pic_manager-->pic_database:download
+frontend-->text_manager
+text_manager-->text_database
+pic_database-->pic_manager:save
+pic_manager-->frontend:save
+frontend-->client:save</pre>
+<pre class="mermaid">---
+title: uploadpic(name3,pic2), cache invalidate
+---
+classDiagram
+
+class client
+client: download_text(name2)->txt2
+class frontend
+frontend: download_text(name2)->txt2
+
+class pic_manager
+class text_manager
+text_manager: download_text(name1)->txt1
+text_manager: download_text(name2)->txt2
+
+class text_database
+text_database: name1->txt1
+text_database: name2->txt2
+class pic_database
+pic_database: name3->pic2
+
+
+client-->frontend:upload
+frontend-->pic_manager:upload
+pic_manager-->pic_database:upload
+frontend-->text_manager
+text_manager-->text_database
+pic_database-->pic_manager:inv
+pic_manager-->frontend:inv
+frontend-->client:inv</pre>
+<pre class="mermaid">---
+title: download_text(name2), cache hit
+---
+classDiagram
+
+class client
+client: download_text(name2)->txt2
+class frontend
+frontend: download_text(name2)->txt2
+
+class pic_manager
+class text_manager
+text_manager: download_text(name1)->txt1
+text_manager: download_text(name2)->txt2
+
+class text_database
+text_database: name1->txt1
+text_database: name2->txt2
+class pic_database
+pic_database: name3->pic2
+
+
+client-->frontend
+frontend-->pic_manager
+pic_manager-->pic_database
+frontend-->text_manager
+text_manager-->text_database</pre>
+<h2 id="task-2-coding">Task #2: Coding</h2>
+<blockquote>
+<p>Summarize the key components to apply the MuCache protocol, and
+implement an example to show that the datastore is linearizable. Note:
+We are not asking you to build and run the open-source version of
+MuCache (you may use it as a reference). Please implement your own
+version of MuCache protocol (just a prototype to show the key ideas).
+You may remove any component you think is not critical in the design,
+and use simple functions to simulate the behavior of each service/thread
+in your code.</p>
+</blockquote>
+<p>Please refer to the code <a href="./mucache">mucache</a> and <a
+href="./mucache/README.md">readme</a>.</p>
+]]></content>
+      <categories>
+        <category>Paper Reading</category>
+      </categories>
+      <tags>
+        <tag>MicroService</tag>
       </tags>
   </entry>
 </search>

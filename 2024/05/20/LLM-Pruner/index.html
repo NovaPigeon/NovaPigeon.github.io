@@ -36,7 +36,7 @@
 <meta property="og:image" content="https://novapigeon.github.io/2024/05/20/LLM-Pruner/res3.png">
 <meta property="og:image" content="https://novapigeon.github.io/2024/05/20/LLM-Pruner/res4.png">
 <meta property="article:published_time" content="2024-05-20T11:06:33.000Z">
-<meta property="article:modified_time" content="2024-05-20T20:59:57.584Z">
+<meta property="article:modified_time" content="2024-05-20T21:02:16.858Z">
 <meta property="article:author" content="NovaPigeon">
 <meta property="article:tag" content="MLSys">
 <meta property="article:tag" content="LLM">
@@ -155,8 +155,8 @@
         <!--noindex-->
         <div class="post-toc-wrap sidebar-panel">
             <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#background-knowledge"><span class="nav-number">1.</span> <span class="nav-text">Background Knowledge</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#challenges"><span class="nav-number">2.</span> <span class="nav-text">Challenges</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#motivation"><span class="nav-number">3.</span> <span class="nav-text">Motivation</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#methods"><span class="nav-number">4.</span> <span class="nav-text">Methods</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#discover-all-coupled-structure-in-llms"><span class="nav-number">4.1.</span> <span class="nav-text">Discover All Coupled
-Structure in LLMs</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#grouped-importance-estimation"><span class="nav-number">5.</span> <span class="nav-text">Grouped Importance
-Estimation</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#vector-wise-importance"><span class="nav-number">5.1.</span> <span class="nav-text">Vector-wise Importance</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#element-wise-importance"><span class="nav-number">5.2.</span> <span class="nav-text">Element-wise Importance</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#group-importance"><span class="nav-number">5.3.</span> <span class="nav-text">Group Importance</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#fast-recovery-with-lora"><span class="nav-number">6.</span> <span class="nav-text">Fast Recovery with LoRA</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#results"><span class="nav-number">7.</span> <span class="nav-text">Results</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#reference"><span class="nav-number">8.</span> <span class="nav-text">Reference</span></a></li></ol></div>
+Structure in LLMs</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#grouped-importance-estimation"><span class="nav-number">4.2.</span> <span class="nav-text">Grouped Importance
+Estimation</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#vector-wise-importance"><span class="nav-number">4.2.1.</span> <span class="nav-text">Vector-wise Importance</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#element-wise-importance"><span class="nav-number">4.2.2.</span> <span class="nav-text">Element-wise Importance</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#group-importance"><span class="nav-number">4.2.3.</span> <span class="nav-text">Group Importance</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#fast-recovery-with-lora"><span class="nav-number">4.3.</span> <span class="nav-text">Fast Recovery with LoRA</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#results"><span class="nav-number">5.</span> <span class="nav-text">Results</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#reference"><span class="nav-number">6.</span> <span class="nav-text">Reference</span></a></li></ol></div>
         </div>
         <!--/noindex-->
 
@@ -245,7 +245,7 @@ Estimation</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a c
         <i class="far fa-calendar-check"></i>
       </span>
       <span class="post-meta-item-text">更新于</span>
-      <time title="修改时间：2024-05-21 04:59:57" itemprop="dateModified" datetime="2024-05-21T04:59:57+08:00">2024-05-21</time>
+      <time title="修改时间：2024-05-21 05:02:16" itemprop="dateModified" datetime="2024-05-21T05:02:16+08:00">2024-05-21</time>
     </span>
     <span class="post-meta-item">
       <span class="post-meta-item-icon">
@@ -340,12 +340,12 @@ class="math inline">\(Deg^-(N_i),Deg^+(N_i)\)</span> 分别表示神经元
 2. Multi-head Attention（多头注意力）内部的耦合。 3.
 整个网络中的维度耦合。</p>
 <img src="/2024/05/20/LLM-Pruner/group.png" class="">
-<h2 id="grouped-importance-estimation">Grouped Importance
-Estimation</h2>
+<h3 id="grouped-importance-estimation">Grouped Importance
+Estimation</h3>
 <p>剪枝需要度量参数的重要性，然后才能去除不太重要的参数。</p>
 <p>因为之前已经做过模型的依赖分析了，所以我们以组为单位评估重要性，而非以单个的神经元结构。</p>
 <p>主要有两种度量方式。</p>
-<h3 id="vector-wise-importance">Vector-wise Importance</h3>
+<h4 id="vector-wise-importance">Vector-wise Importance</h4>
 <p>第一，是以整个参数矩阵为单位，评估其重要性。</p>
 <p>我们定义数据集 <span
 class="math inline">\(D=\{x_i,y_i\}_{i=1}^N\)</span>，在实验中使用 10
@@ -364,7 +364,7 @@ Loss 与将模型中该参数矩阵置零的 Loss 之差。</p>
 <p>此处还有一些小细节。 1.
 因为使用的数据并不来源于模型的原始数据，所以模型在数据集上并未收敛，重要性的第一项不为零，使得可以较好地度量参数矩阵的重要性。
 2. Hessian 矩阵的计算复杂度过高，所以只计算了对角线上的元素。</p>
-<h3 id="element-wise-importance">Element-wise Importance</h3>
+<h4 id="element-wise-importance">Element-wise Importance</h4>
 <p>除此之外，还可以度量更细粒度的重要性，比如单个参数的重要性。</p>
 <p>其中 <span class="math inline">\(W_i^k\)</span> 代表参数矩阵中的第
 <span class="math inline">\(k\)</span> 个参数，<span
@@ -383,7 +383,7 @@ class="math inline">\(H_{kk}\)</span> 的对角线，就不过多赘述了。</p
 W_i^k-\frac{1}{2} \sum_{j=1}^N \left(\frac{\partial
 \mathcal{L}(\mathcal{D}_j)}{\partial W_i^k} W_i^k\right)^2 +
 \mathcal{O}\left(\| W_i^k \|^3\right) |\]</span></p>
-<h3 id="group-importance">Group Importance</h3>
+<h4 id="group-importance">Group Importance</h4>
 <p>拥有了上面的信息，我们就可以度量整个组的重要性了，文中给出了四种不同的方法，分别对应了不同的预设。</p>
 <ol type="1">
 <li>Summation(求和): <span class="math inline">\(I_{\mathcal{G}} =
@@ -404,7 +404,7 @@ I_{W_l^k}\)</span>, <span class="math inline">\(l\)</span>
 是最后一层。认为组内的最后一层主导了整层的重要性，因为只有最后一层才会对后面的层产生影响。</li>
 </ol>
 <p>我们可以更具不同的预设，使用不同的重要性度量方式，然后设置阈值，进行粒度为组的剪枝。</p>
-<h2 id="fast-recovery-with-lora">Fast Recovery with LoRA</h2>
+<h3 id="fast-recovery-with-lora">Fast Recovery with LoRA</h3>
 <p>在完成剪枝之后，需要对模型进行恢复训练，以提高模型的精度。这需要使用尽可能少的数据，并且尽可能地快，因此训练时需要使用尽可能少的模型参数。LoRA
 正好能解决这一问题。</p>
 <p>我们快速地过一遍 LoRA。</p>
