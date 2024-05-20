@@ -337,7 +337,9 @@ Less Training Data and Smaller Model Sizes, <span class="exturl" data-url="aHR0c
       <tags>
         <tag>MLSys</tag>
         <tag>LLM</tag>
+        <tag>LLM Compression</tag>
         <tag>Knowledge Distilation</tag>
+        <tag>CoT</tag>
       </tags>
   </entry>
   <entry>
@@ -529,6 +531,7 @@ finetune，以帮助模型恢复到剪枝前的水平。</p>
       <tags>
         <tag>MLSys</tag>
         <tag>LLM</tag>
+        <tag>LLM Compression</tag>
         <tag>Pruning</tag>
         <tag>Structure Pruning</tag>
       </tags>
@@ -1285,7 +1288,9 @@ Large-Scale Transformers, <span class="exturl" data-url="aHR0cHM6Ly9hcnhpdi5vcmc
       <tags>
         <tag>MLSys</tag>
         <tag>LLM</tag>
+        <tag>LLM Compression</tag>
         <tag>Quantization</tag>
+        <tag>PTQ</tag>
       </tags>
   </entry>
 </search>
