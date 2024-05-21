@@ -20,23 +20,36 @@
 
 <script class="next-config" data-name="main" type="application/json">{"hostname":"novapigeon.github.io","root":"/","images":"/images","scheme":"Gemini","darkmode":false,"version":"8.20.0","exturl":true,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"copycode":{"enable":true,"style":"mac"},"fold":{"enable":true,"height":500},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":true,"comments":{"style":"tabs","active":"giscus","storage":true,"lazyload":true,"nav":null,"activeClass":"giscus"},"stickytabs":true,"motion":{"enable":true,"async":false,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"搜索...","empty":"没有找到任何搜索结果：${query}","hits_time":"找到 ${hits} 个搜索结果（用时 ${time} 毫秒）","hits":"找到 ${hits} 个搜索结果"},"path":"/search.xml","localsearch":{"enable":true,"trigger":"auto","top_n_per_article":-1,"unescape":true,"preload":true}}</script><script src="/js/config.js"></script>
 
-    <meta property="og:type" content="website">
-<meta property="og:title" content="NovaPigeon&#39;s Blog">
-<meta property="og:url" content="https://novapigeon.github.io/tags/Quantization/index.html">
+    <meta name="description" content="Efficient Compression of the Embedding Layer in LLMs based on the Tensor-Train Decomposition.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="TensorGPT">
+<meta property="og:url" content="https://novapigeon.github.io/2024/05/21/TensorGPT/index.html">
 <meta property="og:site_name" content="NovaPigeon&#39;s Blog">
+<meta property="og:description" content="Efficient Compression of the Embedding Layer in LLMs based on the Tensor-Train Decomposition.">
 <meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://novapigeon.github.io/2024/05/21/TensorGPT/token_embedding.png">
+<meta property="og:image" content="https://novapigeon.github.io/2024/05/21/TensorGPT/layer_params.png">
+<meta property="og:image" content="https://novapigeon.github.io/2024/05/21/TensorGPT/ttd_svd.png">
+<meta property="og:image" content="https://novapigeon.github.io/2024/05/21/TensorGPT/result.png">
+<meta property="article:published_time" content="2024-05-20T21:05:45.000Z">
+<meta property="article:modified_time" content="2024-05-21T13:02:12.446Z">
 <meta property="article:author" content="NovaPigeon">
+<meta property="article:tag" content="MLSys">
+<meta property="article:tag" content="LLM">
+<meta property="article:tag" content="LLM Compression">
+<meta property="article:tag" content="Low-Rank Factorization">
 <meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://novapigeon.github.io/2024/05/21/TensorGPT/token_embedding.png">
 
 
-<link rel="canonical" href="https://novapigeon.github.io/tags/Quantization/">
+<link rel="canonical" href="https://novapigeon.github.io/2024/05/21/TensorGPT/">
 
 
 
-<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":false,"lang":"zh-CN","comments":"","permalink":"","path":"tags/Quantization/index.html","title":""}</script>
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh-CN","comments":true,"permalink":"https://novapigeon.github.io/2024/05/21/TensorGPT/","path":"2024/05/21/TensorGPT/","title":"TensorGPT"}</script>
 
 <script class="next-config" data-name="calendar" type="application/json">""</script>
-<title>标签: Quantization | NovaPigeon's Blog</title>
+<title>TensorGPT | NovaPigeon's Blog</title>
   
 
 
@@ -123,7 +136,7 @@
   
   <aside class="sidebar">
 
-    <div class="sidebar-inner sidebar-overview-active">
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
       <ul class="sidebar-nav">
         <li class="sidebar-nav-toc">
           文章目录
@@ -136,6 +149,7 @@
       <div class="sidebar-panel-container">
         <!--noindex-->
         <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#background-knowledge"><span class="nav-number">1.</span> <span class="nav-text">Background Knowledge</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#low-rank-factorization"><span class="nav-number">1.1.</span> <span class="nav-text">Low-Rank Factorization</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#token-embedding"><span class="nav-number">1.2.</span> <span class="nav-text">Token embedding</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#method"><span class="nav-number">2.</span> <span class="nav-text">Method</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#results"><span class="nav-number">3.</span> <span class="nav-text">Results</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#reference"><span class="nav-number">4.</span> <span class="nav-text">Reference</span></a></li></ol></div>
         </div>
         <!--/noindex-->
 
@@ -177,51 +191,209 @@
 
     </div>
 
-    <div class="main-inner tag posts-collapse">
+    <div class="main-inner post posts-expand">
 
 
   
+
+
+<div class="post-block">
   
   
-  <div class="post-block">
-    <div class="post-content">
-      <div class="collection-title">
-        <h1 class="collection-header">Quantization
-          <small>标签</small>
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://novapigeon.github.io/2024/05/21/TensorGPT/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avator.jpg">
+      <meta itemprop="name" content="NovaPigeon">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="NovaPigeon's Blog">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="TensorGPT | NovaPigeon's Blog">
+      <meta itemprop="description" content="Efficient Compression of the Embedding Layer in LLMs based on the Tensor-Train Decomposition.">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          TensorGPT
         </h1>
-      </div>
 
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
       
-    <div class="collection-year">
-      <span class="collection-header">2024</span>
+
+      <time title="创建时间：2024-05-21 05:05:45 / 修改时间：21:02:12" itemprop="dateCreated datePublished" datetime="2024-05-21T05:05:45+08:00">2024-05-21</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">分类于</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Paper-Reading/" itemprop="url" rel="index"><span itemprop="name">Paper Reading</span></a>
+        </span>
+    </span>
+
+  
+    <span class="post-meta-item" title="阅读次数" id="busuanzi_container_page_pv">
+      <span class="post-meta-item-icon">
+        <i class="far fa-eye"></i>
+      </span>
+      <span class="post-meta-item-text">阅读次数：</span>
+      <span id="busuanzi_value_page_pv"></span>
+    </span>
+</div>
+
+            <div class="post-description">Efficient Compression of the Embedding Layer in LLMs based on the Tensor-Train Decomposition.</div>
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><h2 id="background-knowledge">Background Knowledge</h2>
+<h3 id="low-rank-factorization">Low-Rank Factorization</h3>
+<p>低秩分解的思路和 LoRA
+类似，只不过一个用于微调大模型，一个用于大模型压缩而已。</p>
+<p>低秩分解将一个给定的大的参数矩阵 <span
+class="math inline">\(W\)</span> 分解为两个小矩阵 <span
+class="math inline">\(U,V\)</span>，其乘积近似于 <span
+class="math inline">\(W\)</span>，从而降低参数量和计算开销。</p>
+<p><span class="math display">\[W\approx UV\]</span> <span
+class="math display">\[U\in \mathbb{R}^{m\times k}, V\in
+\mathbb{R}^{k\times n}, k&lt; min(m,n)\]</span></p>
+<h3 id="token-embedding">Token embedding</h3>
+<p>让我们回顾一下 embedding 的内容，首先，将一句话分词为一些 token，这些
+token 转换成 one-hot 的 vector，然后通过 embedding
+编码，将其映射为连续的词向量，用于接下来的推理和训练。我们可以将
+embedding matrix 视作一个字典，one-hot vector
+与之相乘，就是取出某一行的值，作为 token 对应的词向量。</p>
+<p>为了捕捉微妙而复杂的语意，词向量的维度一般比较高，加之 token
+的种类比较多，导致 embedding matrix
+的参数数量过大，对存储和推理都造成了很大的障碍。</p>
+<p>在 ELMo 之前，embedding 层一般是单独训练的，但是，在 ELMo
+之后，很多模型会将 embedding 层与模型内部参数一起训练，所以对 embedding
+层的压缩在一定程度上也能加速模型的训练或微调。</p>
+<img src="/2024/05/21/TensorGPT/token_embedding.png" class="">
+<p>这篇文章主要探讨的是 embedding layer 的压缩，主要针对存储层面。</p>
+<p>因为大模型的参数越来越多，规模越来越大，模型的存储成为了将大模型部署在轻量、低端设备上的主要障碍之一。</p>
+<p>而提高存储效率的解决方案之一就是压缩 embedding layer。以 GPT-2
+为例，如图所示，嵌入层占到了整个模型参数量的 31.02%。</p>
+<img src="/2024/05/21/TensorGPT/layer_params.png" class="">
+<h2 id="method">Method</h2>
+<p>这篇文章的 Key Idea 很简单，就是将一个大的 Tensor
+近似分解成一系列小的低秩 Tensor 的乘积。</p>
+<p>分解的方法称之为 TTD，Tensor 分解后的表示形式称之为
+MPS，矩阵乘积态。</p>
+<p>具体的算法大概是先给定所有子 tensor 的维度，然后递归地对原始 tensor
+做 SVD 分解，得到一系列子 Tensor。</p>
+<p>具体的形式化表示如下：</p>
+<p><span class="math display">\[\mathcal{X} \approx \mathcal{G}^{(1)}
+\times_2^1 \mathcal{G}^{(2)} \times_3^1 \mathcal{G}^{(3)} \times_3^1
+\cdots \times_3^1 \mathcal{G}^{(N)}\]</span></p>
+<p><span class="math display">\[\text{Original Tensor }\mathcal{X}\in
+\mathbb{R}^{I_1\times I_2\times...\times I_N}\]</span> <span
+class="math display">\[\text{Core Tensor }\mathcal{G}^{(n)}\in
+\mathbb{R}^{R_{n-1}\times I_n \times R_n}\]</span> <span
+class="math display">\[\text{Original Dimension
+}\{I_1,I_2,...,I_N\}\]</span> <span class="math display">\[\text{TT-rank
+}\{R_0,...,R_N\},R_0=R_N=1\]</span></p>
+<img src="/2024/05/21/TensorGPT/ttd_svd.png" class="">
+<p>但是，这种分解的粒度不应该是整个 embedding
+vocabulary，有两点原因：</p>
+<ol type="1">
+<li>vocabulary 是频繁变动的，经常会添加一些 token
+vector，这时候如果是对整个 tensor 进行分解的话，每更改一次
+vocabulary，就要重新运行一次分解算法。</li>
+<li>分解算法的复杂度极高，如果分解整个 embedding vocabulay
+的话要运行很久。</li>
+</ol>
+<p>因此，本文提出了以 token 为粒度，对 embedding matrix 进行分解。因为
+embedding matrix 本质上是一个字典，vocabulay 中的某行仅代表某个 token
+的词向量，行与行之间没有依赖。因此，可以单独的对某一行进行分解。与之前讲的对应的，这样做有三点好处：</p>
+<ol type="1">
+<li>每次修改 embedding vocabulary，只要重新分解新增加的 token
+对应词向量，而不用重新计算整个 tensor 的分解，计算完成后把结果 append
+到原本的结果之后就行了。</li>
+<li>因为行的分解是独立运算的，所以可以充分并行。</li>
+<li>这也降低了存储开销，从 <span class="math inline">\(O(I^N)\)</span>
+降低到了 <span class="math inline">\(O(NR^2I)\)</span>，这里假定
+TTD-rank 和 Original Dimension 中的每个元素都是相等的。</li>
+</ol>
+<p>另外，还有一些技术细节，譬如说，在对行向量进行 TTD 时，需要先将其
+reshape 为 <span class="math inline">\(W^{2\times 2\times ... \times
+2}\)</span>，如果 <span class="math inline">\(W\)</span> 的参数数量不是
+2 的指数，将其补齐为 2 的指数，补齐的元素置零。</p>
+<h2 id="results">Results</h2>
+<p>根据实验结果，可以看到， Embedding layer 最多压缩了 38.4
+倍，而当压缩倍数时 3.31 时，甚至能产生比原始 GPT-2 模型更好的性能。</p>
+<p>但是，这篇文章并没有考虑诸如位置编码等其他编码信息，而且并没有将 MPS
+用于加速 token embedding 运算中，仅仅将其作为 embedding layer
+的一种压缩表示。另外，文章只分析了
+GPT-2，对于一片2023年的文章来讲多少有点陈旧了。</p>
+<img src="/2024/05/21/TensorGPT/result.png" class="">
+<h2 id="reference">Reference</h2>
+<ol type="1">
+<li>TensorGPT: Efficient Compression of the Embedding Layer in LLMs
+based on the Tensor-Train Decomposition, <span class="exturl" data-url="aHR0cHM6Ly9hcnhpdi5vcmcvYWJzLzIzMDcuMDA1MjY=">https://arxiv.org/abs/2307.00526<i class="fa fa-external-link-alt"></i></span>.</li>
+<li>A Survey on Model Compression for Large Language Models, <span class="exturl" data-url="aHR0cHM6Ly9hcnhpdi5vcmcvYWJzLzIzMDguMDc2MzM=">https://arxiv.org/abs/2308.07633<i class="fa fa-external-link-alt"></i></span>.</li>
+</ol>
+
     </div>
 
-  <article itemscope itemtype="http://schema.org/Article">
-    <header class="post-header">
-      <div class="post-meta-container">
-        <time itemprop="dateCreated"
-              datetime="2024-05-15T18:12:30+08:00"
-              content="2024-05-15">
-          05-15
-        </time>
-      </div>
+    
+    
+    
 
-      <div class="post-title">
-          <a class="post-title-link" href="/2024/05/15/ZeroQuant/" itemprop="url">
-            <span itemprop="name">ZeroQuant</span>
-          </a>
-      </div>
+    <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/MLSys/" rel="tag"># MLSys</a>
+              <a href="/tags/LLM/" rel="tag"># LLM</a>
+              <a href="/tags/LLM-Compression/" rel="tag"># LLM Compression</a>
+              <a href="/tags/Low-Rank-Factorization/" rel="tag"># Low-Rank Factorization</a>
+          </div>
 
-      
-    </header>
+        
+  <div class="social-like a2a_kit a2a_kit_size_32 a2a_default_style">
+    <a class="a2a_dd" target="_blank" rel="noopener" href="https://www.addtoany.com/share"></a>
+      <a class="a2a_button_facebook"></a>
+      <a class="a2a_button_twitter"></a>
+  </div>
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2024/05/20/LLM-Pruner/" rel="prev" title="LLM-Pruner">
+                  <i class="fa fa-angle-left"></i> LLM-Pruner
+                </a>
+            </div>
+            <div class="post-nav-item">
+            </div>
+          </div>
+    </footer>
   </article>
+</div>
 
-    </div>
+
+
+
+
+
+    
+  
+  <div class="comments giscus-container">
   </div>
   
   
-  
-
 </div>
   </main>
 
@@ -314,7 +486,7 @@
 
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/quicklink/2.3.0/quicklink.umd.js" integrity="sha256-yvJQOINiH9fWemHn0vCA5lsHWJaHs6/ZmO+1Ft04SvM=" crossorigin="anonymous"></script>
-  <script class="next-config" data-name="quicklink" type="application/json">{"enable":true,"home":true,"archive":true,"delay":true,"timeout":3000,"priority":true,"url":"https://novapigeon.github.io/tags/Quantization/"}</script>
+  <script class="next-config" data-name="quicklink" type="application/json">{"enable":true,"home":true,"archive":true,"delay":true,"timeout":3000,"priority":true,"url":"https://novapigeon.github.io/2024/05/21/TensorGPT/"}</script>
   <script src="/js/third-party/quicklink.js"></script>
 <script class="next-config" data-name="giscus" type="application/json">{"enable":true,"repo":"NovaPigeon/NovaPigeon.github.io","repo_id":"R_kgDOL7zRSg","category":"Announcements","category_id":"DIC_kwDOL7zRSs4CfX-L","mapping":"pathname","strict":0,"reactions_enabled":1,"emit_metadata":1,"theme":"light","lang":"zh-CN","crossorigin":"anonymous","input_position":"bottom","loading":"lazy"}</script>
 
