@@ -254,8 +254,13 @@ input-&gt;reasoning chain-&gt;output。在 CoT
 <p>给个例子。</p>
 <blockquote>
 <p>问题：有一个长为 15m，宽为 11m 的房间，其中 16
-平米已经铺了地砖，请问还要铺多少平米的地砖？ 中间步骤：面积=长 *
-宽，这个房间的面积是 15x11 平米。 答案：(11x15)-16</p>
+平米已经铺了地砖，请问还要铺多少平米的地砖？</p>
+</blockquote>
+<blockquote>
+<p>中间步骤：面积=长 * 宽，这个房间的面积是 15x11 平米。</p>
+</blockquote>
+<blockquote>
+<p>答案：(11x15)-16。</p>
 </blockquote>
 <p>中间步骤会提供更多的额外信息，譬如说面积的计算公式，以往这些信息一般需要更多的数据才能被小模型学会。</p>
 <h3 id="extracting-rationalesgenerate-dataset">Extracting
@@ -534,6 +539,335 @@ finetune，以帮助模型恢复到剪枝前的水平。</p>
         <tag>LLM Compression</tag>
         <tag>Pruning</tag>
         <tag>Structure Pruning</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Parsimon</title>
+    <url>/2024/05/15/Parsimon/</url>
+    <content><![CDATA[<h1 id="fast-flow-level-network-simulation">Fast Flow-level Network
+Simulation</h1>
+<h2 id="task-1-reading-writing">Task #1 Reading &amp; Writing:</h2>
+<h3 id="read-httpsarxiv.orgpdf2205.01234.pdf">1.1. Read
+https://arxiv.org/pdf/2205.01234.pdf</h3>
+<p>You can see my reading traces in the annotations of the <a
+href="./parsimon-nsdi23.pdf">paper</a>.</p>
+<h3
+id="conclude-the-key-idea-of-the-paper-explain-the-algorithm-and-analyze-its-sources-of-speedup-and-sources-of-error.">1.2.
+Conclude the key idea of the paper, explain the algorithm, and analyze
+its sources of speedup and sources of error.</h3>
+<h4 id="key-idea-the-algorithm">1.2.1 Key Idea &amp; The Algorithm</h4>
+<p>假设： 1. Data center 中拥塞通常不是同时出现的，而是零散、突发的。 2.
+交换机队列的状态近似符合排队论的结果，仅与网络流量有关，所以我们可以独立分析每个队列。</p>
+<p>因此，我们可以对路径上每个 link
+处的拥塞时间建模。当近似模拟在大规模网络上运行特定工作负载时端到端流量性能的分布时，我们可以聚合路径拥塞分布，以得到总的性能分布。</p>
+<p>具体而言，算法步骤如下（做了一定的简化，因为会在后面的数学形式化部分详细谈到）：</p>
+<ol type="1">
+<li>Decomposition:
+<ul>
+<li>生成每个 link 的 workload: 包含所有经过该 link 的 workflow</li>
+<li>生成 link-level topology</li>
+</ul></li>
+<li>Clustering: 根据每个 link 的 workload，对 workload 相似的 link
+聚类。</li>
+<li>Simulation: 从每个 cluster 中抽样一个 link 作为代表，对该 link 及其
+workload 做 link-level simulation，得到该 link delay 关于 flowsize
+的桶分布，该 cluster 中其他 link 的分布与代表 link 相同。</li>
+<li>Aggregation: 给定一条具有 size，path 的 workflow，对 path 中的每个
+link，query link 的桶分布（用 size）得到对应的
+bucket，再用蒙特卡洛采样，从该 bucket 取出一个 delay 作为该 link
+的delay。将路径中所有 link 的 delay 累加，就得到该 workload 的
+delay。重复多次，就可以得到 flow-level distribution.</li>
+</ol>
+<h4 id="sources-of-speedup">1.2.2. Sources of Speedup</h4>
+<ol type="1">
+<li>将 flow-level simulation 拆解成了独立的 link-level
+simulation，可以并行化处理，允许扩展模拟网络的大小和处理核心的数量。</li>
+<li>在建立 flow-level topology 时，运用了独特的技术，使得 topology
+最多有 3-hop，降低了 simulation 的规模。</li>
+<li>没有对所有 link 做 link-level simulation，而是做了
+clustering，从中选取一个代表做 link-level simulation。</li>
+<li>Aggregation 时，没有对路径上的所有分布做 convolution，而是 sample
+出一个点做累加。</li>
+</ol>
+<h4 id="sources-of-error">1.2.3. Sources of Error</h4>
+<ol type="1">
+<li>Bottleneck fan-in: Parsimon 在构建 link-level topology 时，将
+potential source hosts 直接连到了目标 link，并没有模拟 upstream
+的实际情况。这导致模拟中的拥塞和排队情况比实际中更重，因为并没有真实的
+upstream links 来 smoothing burst flow。另外，这会略微高估 downstream
+造成的延迟。</li>
+<li>Lack of traffic smoothing: 在真实网络中，前往目标 link 的
+cross-traffic 会被 smoothed，但因为 link-level topology 里无
+cross-traffic，会在 simulation 时稍微高估目标 link 的排队延迟。</li>
+<li>Link-level independence: Parsimon 假设 link-level simulation
+可以独立处理，但这忽略了 flow path 上各 hop
+的流量相关性，引入了误差。</li>
+<li>One bottleneck at a time: 当拥塞是间歇和暂时的，不同时候出现在不同的
+link
+上时，Parsimon更准确；当拥塞跨越给定路径的多个边缘和核心链路时，准确性较低。导致高估
+long flow end-to-end latency。</li>
+<li>Clustering: 由于在 simulation 中使用了 clustering，引入了 actual
+link delay distribution 与 representative link delay distribution
+之间的误差。</li>
+<li>Sampling: Aggregation 时，是从 link-level daley distribution 中
+sample 一个点，而非对整个 delay 做 convolution。</li>
+</ol>
+<h3
+id="how-would-you-utilize-machine-learning-algorithms-to-make-flow-level-network-simulation-faster-and-more-precise">1.3.
+How would you utilize machine learning algorithms to make flow-level
+network simulation faster and more precise?</h3>
+<ol type="1">
+<li>在处理 link-level distribution 时，运用 machine learning
+algorithm(maybe mlp)，为 每个 link train 出一个以 workflow information
+为输入，delay 为输出的函数。当针对给定 workflow 做 aggregation
+时，使用这个函数来得到该 workflow 在对应 link 的 delay。</li>
+<li>改进 clustering 算法，使用诸如 K-means 的算法。</li>
+</ol>
+<h2 id="task-2-math-formulation">Task #2 Math formulation:</h2>
+<blockquote>
+<p>In section 3, the paper shows how Parsimon decomposes the network
+simulation into a series of link-level simulations, and how it
+aggregates the result, please formulate this process. (You can summarize
+the fast link-level simulation algorithm in section 4.1 as a function
+without further explanation. You are also allowed to ignore some of the
+technique details in your formulation)</p>
+</blockquote>
+<p><span class="math inline">\(\text{Given network topology as
+undirected graph }G=(V,E).\)</span></p>
+<p><span class="math inline">\(\text{Given workflow routes
+}WF.\)</span></p>
+<h3 id="generating-link-level-workloads">2.1. Generating Link-Level
+Workloads</h3>
+<p><span class="math inline">\(\forall link \in
+E,(u,v)=link.nodes,WL_{&lt;u,v&gt;}=\{wf|wf \in WF \wedge (\exists
+i&lt;j\text{, s.t. }wf.nodes[i]=u\wedge wf.nodes[j]=v)\}\)</span> <span
+class="math inline">\(WL_{&lt;v,u&gt;}=\{wf|wf \in WF \wedge (\exists
+i&gt;j\text{, s.t. }wf.nodes[i]=u\wedge wf.nodes[j]=v)\}\)</span></p>
+<h3 id="generating-link-level-topologies">2.2. Generating Link-Level
+Topologies</h3>
+<p><span class="math inline">\(\forall link\in E,
+(u,v)=link.nodes\)</span></p>
+<p><span class="math inline">\(\text{The link-level toplogy
+}LinkTopo_{&lt;u,v&gt;}=(V_{&lt;u,v&gt;},E_{&lt;u,v&gt;}).\)</span></p>
+<p>Suppose the traffic through the link <span
+class="math inline">\(&lt;u,v&gt;\)</span> originates from sources <span
+class="math inline">\(S_{&lt;u,v&gt;}\)</span> and terminates in
+destinations <span class="math inline">\(T_{&lt;u,v&gt;}\)</span> .</p>
+<p><span class="math inline">\(\text{Let }S_{&lt;u,v&gt;}:=\{wf.begin|
+wf \in WL_{&lt;u,v&gt;}\},wf.begin=wf[0].\)</span></p>
+<p><span class="math inline">\(\text{Let }T_{&lt;u,v&gt;}:=\{wf.end|wf
+\in WL_{&lt;u,v&gt;}\},wf.end=wf[wf.length-1].\)</span></p>
+<p><span class="math inline">\(\text{If }u.type=host\wedge
+v.type=switch,V_{&lt;u,v&gt;}=\{u,v\}\cup
+T_{&lt;u,v&gt;},E_{&lt;u,v&gt;}=\{newLink(u,v,mainlink)\} \cup
+\{newLink(v,h,downstream)|h \in T_{&lt;u,v&gt;}\}\text{, function
+newLink generates a new link object.}\)</span></p>
+<p><span class="math inline">\(\text{If }u.type=switch\wedge
+v.type=switch,V_{&lt;u,v&gt;}=\{u,v\}\cup T_{&lt;u,v&gt;}\cup
+S_{&lt;u,v&gt;},E_{&lt;u,v&gt;}=\{newLink(u,v,mainlink)\} \cup
+\{newLink(v,h,downstream)|h \in T_{&lt;u,v&gt;}\}\cup \{
+newLink(h,u,upstream)|h\in S_{&lt;u,v&gt;} \}.\)</span></p>
+<p><span class="math inline">\(\text{If }u.type=switch\wedge
+v.type=host,V_{&lt;u,v&gt;}=\{u,v\}\cup
+S_{&lt;u,v&gt;},E_{&lt;u,v&gt;}=\{newLink(u,v,ismainlink)\} \cup
+\{newLink(h,u,upstream)|h \in S_{&lt;u,v&gt;}\}.\)</span></p>
+<p><span class="math inline">\(LinkTopo_{&lt;v,u&gt;} \text{ would be
+genareted by the same way above.}\)</span></p>
+<h4 id="modeling-round-trip-delay">2.2.1. Modeling Round-Trip Delay</h4>
+<p><span class="math inline">\(\forall link \in
+E_{&lt;u,v&gt;}.\)</span></p>
+<p><span class="math inline">\(\text{Then the link has the only
+correspond workflow }wf\text{, s.t. }wf\in WL_{&lt;u,v&gt;}\wedge
+(\exists i&lt;j, wf.nodes[i]=u \wedge wf.nodes[j]=v).\)</span></p>
+<p><span class="math inline">\(\text{Therefore we could got the latency
+of the link
+}link.latency=\sum_{k=i}^{j-1}getLink(wf.nodes[k],wf.nodes[k+1]).latency.\)</span></p>
+<p><span class="math inline">\(\text{Let }getLink(u,v):=e \text{ if
+}e\in E \wedge e.nodes=(u,v).\)</span></p>
+<h4 id="selecting-link-bandwidths">2.2.2. Selecting Link Bandwidths</h4>
+<p><span class="math inline">\(\text{We should increase the bandwidth of
+downstream links.}\)</span></p>
+<p><span class="math inline">\(\forall link \in
+E_{&lt;u,v&gt;}.\)</span></p>
+<p><span class="math inline">\(\text{If }link.type=downstream\text{,
+then }link.bandwidth=addBandwidth(link)\text{, the function addBandwidth
+would increase the bandwidth of the link.}\)</span></p>
+<h4 id="correcting-for-ack-traffic">2.2.3. Correcting for ACK
+Traffic</h4>
+<p>This part is too detailed, so I omitted it.</p>
+<h3 id="post-processing-link-level-results">2.3. Post-Processing
+Link-Level Results</h3>
+<p><span class="math inline">\(\forall link \in
+E,(u,v)=link.nodes.\)</span></p>
+<p><span class="math inline">\(\forall wf \in
+WL_{&lt;u,v&gt;}.\)</span></p>
+<p><span class="math inline">\(\text{We generate the FCT of the workflow
+in the link, }
+FCT_{&lt;u,v&gt;,wf}:=Simulate(LinkTopo_{&lt;u,v&gt;},wf).\)</span></p>
+<p><span class="math inline">\(\text{Let ideal FCT of the link for the
+workflow
+}IdealFCT_{&lt;u,v&gt;,wf}:=link.latency+wf.size/link.bandwidth.\)</span></p>
+<p><span class="math inline">\(\text{Let latency of the link for the
+workflow
+}Delay_{&lt;u,v&gt;,wf}:=FCT_{&lt;u,v&gt;,wf}-IdealFCT_{&lt;u,v&gt;,wf}\)</span>.</p>
+<h4 id="packet-normalized-delay">2.3.1. Packet-Normalized Delay</h4>
+<p><span class="math inline">\(\text{Let packet-normalized delay
+}NormDelay_{&lt;u,v&gt;,wf}:=Delay_{&lt;u,v&gt;,wf}/wf.packetsize.\)</span></p>
+<h4 id="bucketing-distributions">2.3.2. Bucketing Distributions</h4>
+<p><span class="math inline">\(\text{Let set of packet-normalized delay
+for the link of each workflow
+}NormDelay_{&lt;u,v&gt;}:=\{NormDelay_{&lt;u,v&gt;,wf}|wf \in
+WL_{&lt;u,v&gt;}\}.\)</span></p>
+<p><span class="math inline">\(\text{Given hyper-parameters
+x,B}\)</span>.</p>
+<p>For each bucket <span class="math inline">\(b\)</span>, let <span
+class="math inline">\(maxf_b\)</span> and <span
+class="math inline">\(minf_b\)</span> be the maximum and minimum flow
+sizes associated with <span class="math inline">\(b\)</span>,
+respectively, and let <span class="math inline">\(n_b\)</span> be the
+number of elements in <span class="math inline">\(b\)</span>. Each
+bucket <span class="math inline">\(b\)</span> apart from the last one is
+locally subject to two constraints:</p>
+<p><span class="math display">\[n_b \ge B \text{ and } maxf_b \ge
+x*minf_b\]</span></p>
+<p>The algorithm to generate buckets and bucketing distribution:</p>
+<figure class="highlight py"><table><tr><td class="code"><pre><span class="line"><span class="keyword">global</span> B,x</span><br><span class="line"><span class="keyword">def</span> <span class="title function_">GenerateBuckets</span>(<span class="params">NormDelay</span>):</span><br><span class="line">    BD=[]</span><br><span class="line">    NormDelay.sort(by=wf_size) <span class="comment"># sorted by the flow size, not packet size</span></span><br><span class="line">    nb=<span class="number">0</span></span><br><span class="line">    maxfb=INT_MIN</span><br><span class="line">    minfb=INT_MAX</span><br><span class="line">    bucket=[]</span><br><span class="line">    <span class="keyword">for</span> delay <span class="keyword">in</span> NormDelay:</span><br><span class="line">        bucket.append(delay)</span><br><span class="line">        maxfb=<span class="built_in">max</span>(delay,maxfb)</span><br><span class="line">        minfb=<span class="built_in">min</span>(delay,minfb)</span><br><span class="line">        nb=nb+<span class="number">1</span></span><br><span class="line">        <span class="keyword">if</span> nb&gt;=B <span class="keyword">and</span> maxfb&gt;=x*minfb:</span><br><span class="line">            BD.append(copy.deepcopy(bucket))</span><br><span class="line">            bucket=[]</span><br><span class="line">            nb=<span class="number">0</span></span><br><span class="line">            maxfb=INT_MIN</span><br><span class="line">            minfb=INT_MAX</span><br><span class="line">    <span class="keyword">return</span> BD</span><br></pre></td></tr></table></figure>
+<p><span class="math inline">\(\text{Then we get the bucketing
+distribution of packet-normalized delay for the link
+}BD_{&lt;u,v&gt;}:=\{Bucket_{&lt;u,v&gt;,i}\}=GenerateBuckets(NormDelay_{&lt;u,v&gt;}).\)</span></p>
+<h3 id="aggregating-link-level-estimates">2.4. Aggregating Link-Level
+Estimates</h3>
+<p><span class="math inline">\(\text{Given }size,S,D \text{ as size,
+source and destination, then Parsimon compute the path from source to
+destination }Path=computePath(size,S,D,G).\)</span></p>
+<p><span class="math inline">\(\forall i, \vec{v_i}=&lt;u_i,v_i&gt;
+=Path[i].\)</span></p>
+<p><span class="math inline">\(\text{By querying the bucketing
+distribution by } size\text{, we obtain }\)</span></p>
+<p><span class="math inline">\(Bucket_i\in BD_{&lt;u_i,v_i&gt;}\text{,
+s.t. }size\ge min(BD_{&lt;u_i,v_i&gt;}) \wedge size\le
+max(BD_{&lt;u_i,v_i&gt;}).\)</span></p>
+<p><span class="math inline">\(\text{Then randomly sample a point from
+the bucket }D_i^* \stackrel{}{\leftarrow} Bucket_i.\)</span></p>
+<p><span class="math inline">\(\text{The end-to-end absolute delay } D
+\text{ is computed as }D=P\sum_{i}D_i^*\text{, where } P \text{ is the
+input flow size in packets.}\)</span></p>
+<h2 id="task-3-programming">Task #3 Programming:</h2>
+<blockquote>
+<p>Can you implement and test Algorithm 1 with a sample network? You may
+also refer to Appendix D for some details.</p>
+</blockquote>
+<p>Please refer to the test code <a
+href="./algorithm.ipynb">algorithm.ipynb</a> and the source code <a
+href="./clustering/">clustering</a>.</p>
+]]></content>
+      <categories>
+        <category>Paper Reading</category>
+      </categories>
+      <tags>
+        <tag>Network</tag>
+        <tag>Network Simulation</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>TensorGPT</title>
+    <url>/2024/05/21/TensorGPT/</url>
+    <content><![CDATA[<h2 id="background-knowledge">Background Knowledge</h2>
+<h3 id="low-rank-factorization">Low-Rank Factorization</h3>
+<p>低秩分解的思路和 LoRA
+类似，只不过一个用于微调大模型，一个用于大模型压缩而已。</p>
+<p>低秩分解将一个给定的大的参数矩阵 <span
+class="math inline">\(W\)</span> 分解为两个小矩阵 <span
+class="math inline">\(U,V\)</span>，其乘积近似于 <span
+class="math inline">\(W\)</span>，从而降低参数量和计算开销。</p>
+<p><span class="math display">\[W\approx UV\]</span> <span
+class="math display">\[U\in \mathbb{R}^{m\times k}, V\in
+\mathbb{R}^{k\times n}, k&lt; min(m,n)\]</span></p>
+<h3 id="token-embedding">Token embedding</h3>
+<p>让我们回顾一下 embedding 的内容，首先，将一句话分词为一些 token，这些
+token 转换成 one-hot 的 vector，然后通过 embedding
+编码，将其映射为连续的词向量，用于接下来的推理和训练。我们可以将
+embedding matrix 视作一个字典，one-hot vector
+与之相乘，就是取出某一行的值，作为 token 对应的词向量。</p>
+<p>为了捕捉微妙而复杂的语意，词向量的维度一般比较高，加之 token
+的种类比较多，导致 embedding matrix
+的参数数量过大，对存储和推理都造成了很大的障碍。</p>
+<p>在 ELMo 之前，embedding 层一般是单独训练的，但是，在 ELMo
+之后，很多模型会将 embedding 层与模型内部参数一起训练，所以对 embedding
+层的压缩在一定程度上也能加速模型的训练或微调。</p>
+<img src="/2024/05/21/TensorGPT/token_embedding.png" class="">
+<p>这篇文章主要探讨的是 embedding layer 的压缩，主要针对存储层面。</p>
+<p>因为大模型的参数越来越多，规模越来越大，模型的存储成为了将大模型部署在轻量、低端设备上的主要障碍之一。</p>
+<p>而提高存储效率的解决方案之一就是压缩 embedding layer。以 GPT-2
+为例，如图所示，嵌入层占到了整个模型参数量的 31.02%。</p>
+<img src="/2024/05/21/TensorGPT/layer_params.png" class="">
+<h2 id="method">Method</h2>
+<p>这篇文章的 Key Idea 很简单，就是将一个大的 Tensor
+近似分解成一系列小的低秩 Tensor 的乘积。</p>
+<p>分解的方法称之为 TTD，Tensor 分解后的表示形式称之为
+MPS，矩阵乘积态。</p>
+<p>具体的算法大概是先给定所有子 tensor 的维度，然后递归地对原始 tensor
+做 SVD 分解，得到一系列子 Tensor。</p>
+<p>具体的形式化表示如下：</p>
+<p><span class="math display">\[\mathcal{X} \approx \mathcal{G}^{(1)}
+\times_2^1 \mathcal{G}^{(2)} \times_3^1 \mathcal{G}^{(3)} \times_3^1
+\cdots \times_3^1 \mathcal{G}^{(N)}\]</span></p>
+<p><span class="math display">\[\text{Original Tensor }\mathcal{X}\in
+\mathbb{R}^{I_1\times I_2\times...\times I_N}\]</span> <span
+class="math display">\[\text{Core Tensor }\mathcal{G}^{(n)}\in
+\mathbb{R}^{R_{n-1}\times I_n \times R_n}\]</span> <span
+class="math display">\[\text{Original Dimension
+}\{I_1,I_2,...,I_N\}\]</span> <span class="math display">\[\text{TT-rank
+}\{R_0,...,R_N\},R_0=R_N=1\]</span></p>
+<img src="/2024/05/21/TensorGPT/ttd_svd.png" class="">
+<p>但是，这种分解的粒度不应该是整个 embedding
+vocabulary，有两点原因：</p>
+<ol type="1">
+<li>vocabulary 是频繁变动的，经常会添加一些 token
+vector，这时候如果是对整个 tensor 进行分解的话，每更改一次
+vocabulary，就要重新运行一次分解算法。</li>
+<li>分解算法的复杂度极高，如果分解整个 embedding vocabulay
+的话要运行很久。</li>
+</ol>
+<p>因此，本文提出了以 token 为粒度，对 embedding matrix 进行分解。因为
+embedding matrix 本质上是一个字典，vocabulay 中的某行仅代表某个 token
+的词向量，行与行之间没有依赖。因此，可以单独的对某一行进行分解。与之前讲的对应的，这样做有三点好处：</p>
+<ol type="1">
+<li>每次修改 embedding vocabulary，只要重新分解新增加的 token
+对应词向量，而不用重新计算整个 tensor 的分解，计算完成后把结果 append
+到原本的结果之后就行了。</li>
+<li>因为行的分解是独立运算的，所以可以充分并行。</li>
+<li>这也降低了存储开销，从 <span class="math inline">\(O(I^N)\)</span>
+降低到了 <span class="math inline">\(O(NR^2I)\)</span>，这里假定
+TTD-rank 和 Original Dimension 中的每个元素都是相等的。</li>
+</ol>
+<p>另外，还有一些技术细节，譬如说，在对行向量进行 TTD 时，需要先将其
+reshape 为 <span class="math inline">\(W^{2\times 2\times ... \times
+2}\)</span>，如果 <span class="math inline">\(W\)</span> 的参数数量不是
+2 的指数，将其补齐为 2 的指数，补齐的元素置零。</p>
+<h2 id="results">Results</h2>
+<p>根据实验结果，可以看到， Embedding layer 最多压缩了 38.4
+倍，而当压缩倍数时 3.31 时，甚至能产生比原始 GPT-2 模型更好的性能。</p>
+<p>但是，这篇文章并没有考虑诸如位置编码等其他编码信息，而且并没有将 MPS
+用于加速 token embedding 运算中，仅仅将其作为 embedding layer
+的一种压缩表示。另外，文章只分析了
+GPT-2，对于一片2023年的文章来讲多少有点陈旧了。</p>
+<img src="/2024/05/21/TensorGPT/result.png" class="">
+<h2 id="reference">Reference</h2>
+<ol type="1">
+<li>TensorGPT: Efficient Compression of the Embedding Layer in LLMs
+based on the Tensor-Train Decomposition, <span class="exturl" data-url="aHR0cHM6Ly9hcnhpdi5vcmcvYWJzLzIzMDcuMDA1MjY=">https://arxiv.org/abs/2307.00526<i class="fa fa-external-link-alt"></i></span>.</li>
+<li>A Survey on Model Compression for Large Language Models, <span class="exturl" data-url="aHR0cHM6Ly9hcnhpdi5vcmcvYWJzLzIzMDguMDc2MzM=">https://arxiv.org/abs/2308.07633<i class="fa fa-external-link-alt"></i></span>.</li>
+</ol>
+]]></content>
+      <categories>
+        <category>Paper Reading</category>
+      </categories>
+      <tags>
+        <tag>MLSys</tag>
+        <tag>LLM</tag>
+        <tag>LLM Compression</tag>
+        <tag>Low-Rank Factorization</tag>
       </tags>
   </entry>
   <entry>
@@ -863,234 +1197,6 @@ href="./mucache/README.md">readme</a>.</p>
       </tags>
   </entry>
   <entry>
-    <title>Parsimon</title>
-    <url>/2024/05/15/Parsimon/</url>
-    <content><![CDATA[<h1 id="fast-flow-level-network-simulation">Fast Flow-level Network
-Simulation</h1>
-<h2 id="task-1-reading-writing">Task #1 Reading &amp; Writing:</h2>
-<h3 id="read-httpsarxiv.orgpdf2205.01234.pdf">1.1. Read
-https://arxiv.org/pdf/2205.01234.pdf</h3>
-<p>You can see my reading traces in the annotations of the <a
-href="./parsimon-nsdi23.pdf">paper</a>.</p>
-<h3
-id="conclude-the-key-idea-of-the-paper-explain-the-algorithm-and-analyze-its-sources-of-speedup-and-sources-of-error.">1.2.
-Conclude the key idea of the paper, explain the algorithm, and analyze
-its sources of speedup and sources of error.</h3>
-<h4 id="key-idea-the-algorithm">1.2.1 Key Idea &amp; The Algorithm</h4>
-<p>假设： 1. Data center 中拥塞通常不是同时出现的，而是零散、突发的。 2.
-交换机队列的状态近似符合排队论的结果，仅与网络流量有关，所以我们可以独立分析每个队列。</p>
-<p>因此，我们可以对路径上每个 link
-处的拥塞时间建模。当近似模拟在大规模网络上运行特定工作负载时端到端流量性能的分布时，我们可以聚合路径拥塞分布，以得到总的性能分布。</p>
-<p>具体而言，算法步骤如下（做了一定的简化，因为会在后面的数学形式化部分详细谈到）：</p>
-<ol type="1">
-<li>Decomposition:
-<ul>
-<li>生成每个 link 的 workload: 包含所有经过该 link 的 workflow</li>
-<li>生成 link-level topology</li>
-</ul></li>
-<li>Clustering: 根据每个 link 的 workload，对 workload 相似的 link
-聚类。</li>
-<li>Simulation: 从每个 cluster 中抽样一个 link 作为代表，对该 link 及其
-workload 做 link-level simulation，得到该 link delay 关于 flowsize
-的桶分布，该 cluster 中其他 link 的分布与代表 link 相同。</li>
-<li>Aggregation: 给定一条具有 size，path 的 workflow，对 path 中的每个
-link，query link 的桶分布（用 size）得到对应的
-bucket，再用蒙特卡洛采样，从该 bucket 取出一个 delay 作为该 link
-的delay。将路径中所有 link 的 delay 累加，就得到该 workload 的
-delay。重复多次，就可以得到 flow-level distribution.</li>
-</ol>
-<h4 id="sources-of-speedup">1.2.2. Sources of Speedup</h4>
-<ol type="1">
-<li>将 flow-level simulation 拆解成了独立的 link-level
-simulation，可以并行化处理，允许扩展模拟网络的大小和处理核心的数量。</li>
-<li>在建立 flow-level topology 时，运用了独特的技术，使得 topology
-最多有 3-hop，降低了 simulation 的规模。</li>
-<li>没有对所有 link 做 link-level simulation，而是做了
-clustering，从中选取一个代表做 link-level simulation。</li>
-<li>Aggregation 时，没有对路径上的所有分布做 convolution，而是 sample
-出一个点做累加。</li>
-</ol>
-<h4 id="sources-of-error">1.2.3. Sources of Error</h4>
-<ol type="1">
-<li>Bottleneck fan-in: Parsimon 在构建 link-level topology 时，将
-potential source hosts 直接连到了目标 link，并没有模拟 upstream
-的实际情况。这导致模拟中的拥塞和排队情况比实际中更重，因为并没有真实的
-upstream links 来 smoothing burst flow。另外，这会略微高估 downstream
-造成的延迟。</li>
-<li>Lack of traffic smoothing: 在真实网络中，前往目标 link 的
-cross-traffic 会被 smoothed，但因为 link-level topology 里无
-cross-traffic，会在 simulation 时稍微高估目标 link 的排队延迟。</li>
-<li>Link-level independence: Parsimon 假设 link-level simulation
-可以独立处理，但这忽略了 flow path 上各 hop
-的流量相关性，引入了误差。</li>
-<li>One bottleneck at a time: 当拥塞是间歇和暂时的，不同时候出现在不同的
-link
-上时，Parsimon更准确；当拥塞跨越给定路径的多个边缘和核心链路时，准确性较低。导致高估
-long flow end-to-end latency。</li>
-<li>Clustering: 由于在 simulation 中使用了 clustering，引入了 actual
-link delay distribution 与 representative link delay distribution
-之间的误差。</li>
-<li>Sampling: Aggregation 时，是从 link-level daley distribution 中
-sample 一个点，而非对整个 delay 做 convolution。</li>
-</ol>
-<h3
-id="how-would-you-utilize-machine-learning-algorithms-to-make-flow-level-network-simulation-faster-and-more-precise">1.3.
-How would you utilize machine learning algorithms to make flow-level
-network simulation faster and more precise?</h3>
-<ol type="1">
-<li>在处理 link-level distribution 时，运用 machine learning
-algorithm(maybe mlp)，为 每个 link train 出一个以 workflow information
-为输入，delay 为输出的函数。当针对给定 workflow 做 aggregation
-时，使用这个函数来得到该 workflow 在对应 link 的 delay。</li>
-<li>改进 clustering 算法，使用诸如 K-means 的算法。</li>
-</ol>
-<h2 id="task-2-math-formulation">Task #2 Math formulation:</h2>
-<blockquote>
-<p>In section 3, the paper shows how Parsimon decomposes the network
-simulation into a series of link-level simulations, and how it
-aggregates the result, please formulate this process. (You can summarize
-the fast link-level simulation algorithm in section 4.1 as a function
-without further explanation. You are also allowed to ignore some of the
-technique details in your formulation)</p>
-</blockquote>
-<p><span class="math inline">\(\text{Given network topology as
-undirected graph }G=(V,E).\)</span></p>
-<p><span class="math inline">\(\text{Given workflow routes
-}WF.\)</span></p>
-<h3 id="generating-link-level-workloads">2.1. Generating Link-Level
-Workloads</h3>
-<p><span class="math inline">\(\forall link \in
-E,(u,v)=link.nodes,WL_{&lt;u,v&gt;}=\{wf|wf \in WF \wedge (\exists
-i&lt;j\text{, s.t. }wf.nodes[i]=u\wedge wf.nodes[j]=v)\}\)</span> <span
-class="math inline">\(WL_{&lt;v,u&gt;}=\{wf|wf \in WF \wedge (\exists
-i&gt;j\text{, s.t. }wf.nodes[i]=u\wedge wf.nodes[j]=v)\}\)</span></p>
-<h3 id="generating-link-level-topologies">2.2. Generating Link-Level
-Topologies</h3>
-<p><span class="math inline">\(\forall link\in E,
-(u,v)=link.nodes\)</span></p>
-<p><span class="math inline">\(\text{The link-level toplogy
-}LinkTopo_{&lt;u,v&gt;}=(V_{&lt;u,v&gt;},E_{&lt;u,v&gt;}).\)</span></p>
-<p>Suppose the traffic through the link <span
-class="math inline">\(&lt;u,v&gt;\)</span> originates from sources <span
-class="math inline">\(S_{&lt;u,v&gt;}\)</span> and terminates in
-destinations <span class="math inline">\(T_{&lt;u,v&gt;}\)</span> .</p>
-<p><span class="math inline">\(\text{Let }S_{&lt;u,v&gt;}:=\{wf.begin|
-wf \in WL_{&lt;u,v&gt;}\},wf.begin=wf[0].\)</span></p>
-<p><span class="math inline">\(\text{Let }T_{&lt;u,v&gt;}:=\{wf.end|wf
-\in WL_{&lt;u,v&gt;}\},wf.end=wf[wf.length-1].\)</span></p>
-<p><span class="math inline">\(\text{If }u.type=host\wedge
-v.type=switch,V_{&lt;u,v&gt;}=\{u,v\}\cup
-T_{&lt;u,v&gt;},E_{&lt;u,v&gt;}=\{newLink(u,v,mainlink)\} \cup
-\{newLink(v,h,downstream)|h \in T_{&lt;u,v&gt;}\}\text{, function
-newLink generates a new link object.}\)</span></p>
-<p><span class="math inline">\(\text{If }u.type=switch\wedge
-v.type=switch,V_{&lt;u,v&gt;}=\{u,v\}\cup T_{&lt;u,v&gt;}\cup
-S_{&lt;u,v&gt;},E_{&lt;u,v&gt;}=\{newLink(u,v,mainlink)\} \cup
-\{newLink(v,h,downstream)|h \in T_{&lt;u,v&gt;}\}\cup \{
-newLink(h,u,upstream)|h\in S_{&lt;u,v&gt;} \}.\)</span></p>
-<p><span class="math inline">\(\text{If }u.type=switch\wedge
-v.type=host,V_{&lt;u,v&gt;}=\{u,v\}\cup
-S_{&lt;u,v&gt;},E_{&lt;u,v&gt;}=\{newLink(u,v,ismainlink)\} \cup
-\{newLink(h,u,upstream)|h \in S_{&lt;u,v&gt;}\}.\)</span></p>
-<p><span class="math inline">\(LinkTopo_{&lt;v,u&gt;} \text{ would be
-genareted by the same way above.}\)</span></p>
-<h4 id="modeling-round-trip-delay">2.2.1. Modeling Round-Trip Delay</h4>
-<p><span class="math inline">\(\forall link \in
-E_{&lt;u,v&gt;}.\)</span></p>
-<p><span class="math inline">\(\text{Then the link has the only
-correspond workflow }wf\text{, s.t. }wf\in WL_{&lt;u,v&gt;}\wedge
-(\exists i&lt;j, wf.nodes[i]=u \wedge wf.nodes[j]=v).\)</span></p>
-<p><span class="math inline">\(\text{Therefore we could got the latency
-of the link
-}link.latency=\sum_{k=i}^{j-1}getLink(wf.nodes[k],wf.nodes[k+1]).latency.\)</span></p>
-<p><span class="math inline">\(\text{Let }getLink(u,v):=e \text{ if
-}e\in E \wedge e.nodes=(u,v).\)</span></p>
-<h4 id="selecting-link-bandwidths">2.2.2. Selecting Link Bandwidths</h4>
-<p><span class="math inline">\(\text{We should increase the bandwidth of
-downstream links.}\)</span></p>
-<p><span class="math inline">\(\forall link \in
-E_{&lt;u,v&gt;}.\)</span></p>
-<p><span class="math inline">\(\text{If }link.type=downstream\text{,
-then }link.bandwidth=addBandwidth(link)\text{, the function addBandwidth
-would increase the bandwidth of the link.}\)</span></p>
-<h4 id="correcting-for-ack-traffic">2.2.3. Correcting for ACK
-Traffic</h4>
-<p>This part is too detailed, so I omitted it.</p>
-<h3 id="post-processing-link-level-results">2.3. Post-Processing
-Link-Level Results</h3>
-<p><span class="math inline">\(\forall link \in
-E,(u,v)=link.nodes.\)</span></p>
-<p><span class="math inline">\(\forall wf \in
-WL_{&lt;u,v&gt;}.\)</span></p>
-<p><span class="math inline">\(\text{We generate the FCT of the workflow
-in the link, }
-FCT_{&lt;u,v&gt;,wf}:=Simulate(LinkTopo_{&lt;u,v&gt;},wf).\)</span></p>
-<p><span class="math inline">\(\text{Let ideal FCT of the link for the
-workflow
-}IdealFCT_{&lt;u,v&gt;,wf}:=link.latency+wf.size/link.bandwidth.\)</span></p>
-<p><span class="math inline">\(\text{Let latency of the link for the
-workflow
-}Delay_{&lt;u,v&gt;,wf}:=FCT_{&lt;u,v&gt;,wf}-IdealFCT_{&lt;u,v&gt;,wf}\)</span>.</p>
-<h4 id="packet-normalized-delay">2.3.1. Packet-Normalized Delay</h4>
-<p><span class="math inline">\(\text{Let packet-normalized delay
-}NormDelay_{&lt;u,v&gt;,wf}:=Delay_{&lt;u,v&gt;,wf}/wf.packetsize.\)</span></p>
-<h4 id="bucketing-distributions">2.3.2. Bucketing Distributions</h4>
-<p><span class="math inline">\(\text{Let set of packet-normalized delay
-for the link of each workflow
-}NormDelay_{&lt;u,v&gt;}:=\{NormDelay_{&lt;u,v&gt;,wf}|wf \in
-WL_{&lt;u,v&gt;}\}.\)</span></p>
-<p><span class="math inline">\(\text{Given hyper-parameters
-x,B}\)</span>.</p>
-<p>For each bucket <span class="math inline">\(b\)</span>, let <span
-class="math inline">\(maxf_b\)</span> and <span
-class="math inline">\(minf_b\)</span> be the maximum and minimum flow
-sizes associated with <span class="math inline">\(b\)</span>,
-respectively, and let <span class="math inline">\(n_b\)</span> be the
-number of elements in <span class="math inline">\(b\)</span>. Each
-bucket <span class="math inline">\(b\)</span> apart from the last one is
-locally subject to two constraints:</p>
-<p><span class="math display">\[n_b \ge B \text{ and } maxf_b \ge
-x*minf_b\]</span></p>
-<p>The algorithm to generate buckets and bucketing distribution:</p>
-<figure class="highlight py"><table><tr><td class="code"><pre><span class="line"><span class="keyword">global</span> B,x</span><br><span class="line"><span class="keyword">def</span> <span class="title function_">GenerateBuckets</span>(<span class="params">NormDelay</span>):</span><br><span class="line">    BD=[]</span><br><span class="line">    NormDelay.sort(by=wf_size) <span class="comment"># sorted by the flow size, not packet size</span></span><br><span class="line">    nb=<span class="number">0</span></span><br><span class="line">    maxfb=INT_MIN</span><br><span class="line">    minfb=INT_MAX</span><br><span class="line">    bucket=[]</span><br><span class="line">    <span class="keyword">for</span> delay <span class="keyword">in</span> NormDelay:</span><br><span class="line">        bucket.append(delay)</span><br><span class="line">        maxfb=<span class="built_in">max</span>(delay,maxfb)</span><br><span class="line">        minfb=<span class="built_in">min</span>(delay,minfb)</span><br><span class="line">        nb=nb+<span class="number">1</span></span><br><span class="line">        <span class="keyword">if</span> nb&gt;=B <span class="keyword">and</span> maxfb&gt;=x*minfb:</span><br><span class="line">            BD.append(copy.deepcopy(bucket))</span><br><span class="line">            bucket=[]</span><br><span class="line">            nb=<span class="number">0</span></span><br><span class="line">            maxfb=INT_MIN</span><br><span class="line">            minfb=INT_MAX</span><br><span class="line">    <span class="keyword">return</span> BD</span><br></pre></td></tr></table></figure>
-<p><span class="math inline">\(\text{Then we get the bucketing
-distribution of packet-normalized delay for the link
-}BD_{&lt;u,v&gt;}:=\{Bucket_{&lt;u,v&gt;,i}\}=GenerateBuckets(NormDelay_{&lt;u,v&gt;}).\)</span></p>
-<h3 id="aggregating-link-level-estimates">2.4. Aggregating Link-Level
-Estimates</h3>
-<p><span class="math inline">\(\text{Given }size,S,D \text{ as size,
-source and destination, then Parsimon compute the path from source to
-destination }Path=computePath(size,S,D,G).\)</span></p>
-<p><span class="math inline">\(\forall i, \vec{v_i}=&lt;u_i,v_i&gt;
-=Path[i].\)</span></p>
-<p><span class="math inline">\(\text{By querying the bucketing
-distribution by } size\text{, we obtain }\)</span></p>
-<p><span class="math inline">\(Bucket_i\in BD_{&lt;u_i,v_i&gt;}\text{,
-s.t. }size\ge min(BD_{&lt;u_i,v_i&gt;}) \wedge size\le
-max(BD_{&lt;u_i,v_i&gt;}).\)</span></p>
-<p><span class="math inline">\(\text{Then randomly sample a point from
-the bucket }D_i^* \stackrel{}{\leftarrow} Bucket_i.\)</span></p>
-<p><span class="math inline">\(\text{The end-to-end absolute delay } D
-\text{ is computed as }D=P\sum_{i}D_i^*\text{, where } P \text{ is the
-input flow size in packets.}\)</span></p>
-<h2 id="task-3-programming">Task #3 Programming:</h2>
-<blockquote>
-<p>Can you implement and test Algorithm 1 with a sample network? You may
-also refer to Appendix D for some details.</p>
-</blockquote>
-<p>Please refer to the test code <a
-href="./algorithm.ipynb">algorithm.ipynb</a> and the source code <a
-href="./clustering/">clustering</a>.</p>
-]]></content>
-      <categories>
-        <category>Paper Reading</category>
-      </categories>
-      <tags>
-        <tag>Network</tag>
-        <tag>Network Simulation</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>ZeroQuant</title>
     <url>/2024/05/15/ZeroQuant/</url>
     <content><![CDATA[<h2 id="background-knowledge">Background Knowledge</h2>
@@ -1291,107 +1397,6 @@ Large-Scale Transformers, <span class="exturl" data-url="aHR0cHM6Ly9hcnhpdi5vcmc
         <tag>LLM Compression</tag>
         <tag>Quantization</tag>
         <tag>PTQ</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>TensorGPT</title>
-    <url>/2024/05/21/TensorGPT/</url>
-    <content><![CDATA[<h2 id="background-knowledge">Background Knowledge</h2>
-<h3 id="low-rank-factorization">Low-Rank Factorization</h3>
-<p>低秩分解的思路和 LoRA
-类似，只不过一个用于微调大模型，一个用于大模型压缩而已。</p>
-<p>低秩分解将一个给定的大的参数矩阵 <span
-class="math inline">\(W\)</span> 分解为两个小矩阵 <span
-class="math inline">\(U,V\)</span>，其乘积近似于 <span
-class="math inline">\(W\)</span>，从而降低参数量和计算开销。</p>
-<p><span class="math display">\[W\approx UV\]</span> <span
-class="math display">\[U\in \mathbb{R}^{m\times k}, V\in
-\mathbb{R}^{k\times n}, k&lt; min(m,n)\]</span></p>
-<h3 id="token-embedding">Token embedding</h3>
-<p>让我们回顾一下 embedding 的内容，首先，将一句话分词为一些 token，这些
-token 转换成 one-hot 的 vector，然后通过 embedding
-编码，将其映射为连续的词向量，用于接下来的推理和训练。我们可以将
-embedding matrix 视作一个字典，one-hot vector
-与之相乘，就是取出某一行的值，作为 token 对应的词向量。</p>
-<p>为了捕捉微妙而复杂的语意，词向量的维度一般比较高，加之 token
-的种类比较多，导致 embedding matrix
-的参数数量过大，对存储和推理都造成了很大的障碍。</p>
-<p>在 ELMo 之前，embedding 层一般是单独训练的，但是，在 ELMo
-之后，很多模型会将 embedding 层与模型内部参数一起训练，所以对 embedding
-层的压缩在一定程度上也能加速模型的训练或微调。</p>
-<img src="/2024/05/21/TensorGPT/token_embedding.png" class="">
-<p>这篇文章主要探讨的是 embedding layer 的压缩，主要针对存储层面。</p>
-<p>因为大模型的参数越来越多，规模越来越大，模型的存储成为了将大模型部署在轻量、低端设备上的主要障碍之一。</p>
-<p>而提高存储效率的解决方案之一就是压缩 embedding layer。以 GPT-2
-为例，如图所示，嵌入层占到了整个模型参数量的 31.02%。</p>
-<img src="/2024/05/21/TensorGPT/layer_params.png" class="">
-<h2 id="method">Method</h2>
-<p>这篇文章的 Key Idea 很简单，就是将一个大的 Tensor
-近似分解成一系列小的低秩 Tensor 的乘积。</p>
-<p>分解的方法称之为 TTD，Tensor 分解后的表示形式称之为
-MPS，矩阵乘积态。</p>
-<p>具体的算法大概是先给定所有子 tensor 的维度，然后递归地对原始 tensor
-做 SVD 分解，得到一系列子 Tensor。</p>
-<p>具体的形式化表示如下：</p>
-<p><span class="math display">\[\mathcal{X} \approx \mathcal{G}^{(1)}
-\times_2^1 \mathcal{G}^{(2)} \times_3^1 \mathcal{G}^{(3)} \times_3^1
-\cdots \times_3^1 \mathcal{G}^{(N)}\]</span></p>
-<p><span class="math display">\[\text{Original Tensor }\mathcal{X}\in
-\mathbb{R}^{I_1\times I_2\times...\times I_N}\]</span> <span
-class="math display">\[\text{Core Tensor }\mathcal{G}^{(n)}\in
-\mathbb{R}^{R_{n-1}\times I_n \times R_n}\]</span> <span
-class="math display">\[\text{Original Dimension
-}\{I_1,I_2,...,I_N\}\]</span> <span class="math display">\[\text{TT-rank
-}\{R_0,...,R_N\},R_0=R_N=1\]</span></p>
-<img src="/2024/05/21/TensorGPT/ttd_svd.png" class="">
-<p>但是，这种分解的粒度不应该是整个 embedding
-vocabulary，有两点原因：</p>
-<ol type="1">
-<li>vocabulary 是频繁变动的，经常会添加一些 token
-vector，这时候如果是对整个 tensor 进行分解的话，每更改一次
-vocabulary，就要重新运行一次分解算法。</li>
-<li>分解算法的复杂度极高，如果分解整个 embedding vocabulay
-的话要运行很久。</li>
-</ol>
-<p>因此，本文提出了以 token 为粒度，对 embedding matrix 进行分解。因为
-embedding matrix 本质上是一个字典，vocabulay 中的某行仅代表某个 token
-的词向量，行与行之间没有依赖。因此，可以单独的对某一行进行分解。与之前讲的对应的，这样做有三点好处：</p>
-<ol type="1">
-<li>每次修改 embedding vocabulary，只要重新分解新增加的 token
-对应词向量，而不用重新计算整个 tensor 的分解，计算完成后把结果 append
-到原本的结果之后就行了。</li>
-<li>因为行的分解是独立运算的，所以可以充分并行。</li>
-<li>这也降低了存储开销，从 <span class="math inline">\(O(I^N)\)</span>
-降低到了 <span class="math inline">\(O(NR^2I)\)</span>，这里假定
-TTD-rank 和 Original Dimension 中的每个元素都是相等的。</li>
-</ol>
-<p>另外，还有一些技术细节，譬如说，在对行向量进行 TTD 时，需要先将其
-reshape 为 <span class="math inline">\(W^{2\times 2\times ... \times
-2}\)</span>，如果 <span class="math inline">\(W\)</span> 的参数数量不是
-2 的指数，将其补齐为 2 的指数，补齐的元素置零。</p>
-<h2 id="results">Results</h2>
-<p>根据实验结果，可以看到， Embedding layer 最多压缩了 38.4
-倍，而当压缩倍数时 3.31 时，甚至能产生比原始 GPT-2 模型更好的性能。</p>
-<p>但是，这篇文章并没有考虑诸如位置编码等其他编码信息，而且并没有将 MPS
-用于加速 token embedding 运算中，仅仅将其作为 embedding layer
-的一种压缩表示。另外，文章只分析了
-GPT-2，对于一片2023年的文章来讲多少有点陈旧了。</p>
-<img src="/2024/05/21/TensorGPT/result.png" class="">
-<h2 id="reference">Reference</h2>
-<ol type="1">
-<li>TensorGPT: Efficient Compression of the Embedding Layer in LLMs
-based on the Tensor-Train Decomposition, <span class="exturl" data-url="aHR0cHM6Ly9hcnhpdi5vcmcvYWJzLzIzMDcuMDA1MjY=">https://arxiv.org/abs/2307.00526<i class="fa fa-external-link-alt"></i></span>.</li>
-<li>A Survey on Model Compression for Large Language Models, <span class="exturl" data-url="aHR0cHM6Ly9hcnhpdi5vcmcvYWJzLzIzMDguMDc2MzM=">https://arxiv.org/abs/2308.07633<i class="fa fa-external-link-alt"></i></span>.</li>
-</ol>
-]]></content>
-      <categories>
-        <category>Paper Reading</category>
-      </categories>
-      <tags>
-        <tag>MLSys</tag>
-        <tag>LLM</tag>
-        <tag>LLM Compression</tag>
-        <tag>Low-Rank Factorization</tag>
       </tags>
   </entry>
 </search>

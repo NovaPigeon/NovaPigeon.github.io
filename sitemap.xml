@@ -2,6 +2,15 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   
   <url>
+    <loc>https://novapigeon.github.io/2024/05/19/Distilling-Step-by-Step/</loc>
+    
+    <lastmod>2024-05-23</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
     <loc>https://novapigeon.github.io/2024/05/21/TensorGPT/</loc>
     
     <lastmod>2024-05-21</lastmod>
@@ -12,15 +21,6 @@
   
   <url>
     <loc>https://novapigeon.github.io/2024/05/20/LLM-Pruner/</loc>
-    
-    <lastmod>2024-05-20</lastmod>
-    
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  
-  <url>
-    <loc>https://novapigeon.github.io/2024/05/19/Distilling-Step-by-Step/</loc>
     
     <lastmod>2024-05-20</lastmod>
     
@@ -130,7 +130,7 @@
 
   <url>
     <loc>https://novapigeon.github.io/</loc>
-    <lastmod>2024-05-21</lastmod>
+    <lastmod>2024-05-23</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
@@ -138,98 +138,98 @@
   
   <url>
     <loc>https://novapigeon.github.io/tags/Network/</loc>
-    <lastmod>2024-05-21</lastmod>
+    <lastmod>2024-05-23</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://novapigeon.github.io/tags/Network-Emulating/</loc>
-    <lastmod>2024-05-21</lastmod>
+    <lastmod>2024-05-23</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://novapigeon.github.io/tags/MLSys/</loc>
-    <lastmod>2024-05-21</lastmod>
+    <lastmod>2024-05-23</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://novapigeon.github.io/tags/LLM/</loc>
-    <lastmod>2024-05-21</lastmod>
+    <lastmod>2024-05-23</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://novapigeon.github.io/tags/LLM-Compression/</loc>
-    <lastmod>2024-05-21</lastmod>
+    <lastmod>2024-05-23</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://novapigeon.github.io/tags/Knowledge-Distilation/</loc>
-    <lastmod>2024-05-21</lastmod>
+    <lastmod>2024-05-23</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://novapigeon.github.io/tags/CoT/</loc>
-    <lastmod>2024-05-21</lastmod>
+    <lastmod>2024-05-23</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://novapigeon.github.io/tags/Pruning/</loc>
-    <lastmod>2024-05-21</lastmod>
+    <lastmod>2024-05-23</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://novapigeon.github.io/tags/Structure-Pruning/</loc>
-    <lastmod>2024-05-21</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.2</priority>
-  </url>
-  
-  <url>
-    <loc>https://novapigeon.github.io/tags/MicroService/</loc>
-    <lastmod>2024-05-21</lastmod>
+    <lastmod>2024-05-23</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://novapigeon.github.io/tags/Network-Simulation/</loc>
-    <lastmod>2024-05-21</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.2</priority>
-  </url>
-  
-  <url>
-    <loc>https://novapigeon.github.io/tags/Quantization/</loc>
-    <lastmod>2024-05-21</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.2</priority>
-  </url>
-  
-  <url>
-    <loc>https://novapigeon.github.io/tags/PTQ/</loc>
-    <lastmod>2024-05-21</lastmod>
+    <lastmod>2024-05-23</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://novapigeon.github.io/tags/Low-Rank-Factorization/</loc>
-    <lastmod>2024-05-21</lastmod>
+    <lastmod>2024-05-23</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://novapigeon.github.io/tags/MicroService/</loc>
+    <lastmod>2024-05-23</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://novapigeon.github.io/tags/Quantization/</loc>
+    <lastmod>2024-05-23</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://novapigeon.github.io/tags/PTQ/</loc>
+    <lastmod>2024-05-23</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
@@ -238,7 +238,7 @@
   
   <url>
     <loc>https://novapigeon.github.io/categories/Paper-Reading/</loc>
-    <lastmod>2024-05-21</lastmod>
+    <lastmod>2024-05-23</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
